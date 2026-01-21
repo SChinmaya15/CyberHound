@@ -10,13 +10,23 @@ export enum ScanStatus {
   COMPLETED = 'Completed',
   IN_PROGRESS = 'In Progress',
   PENDING = 'Pending',
-  FAILED = 'Failed'
+  FAILED = 'Failed',
+  DRAFT = 'Draft'
 }
 
 export enum StorageSource {
   GOOGLE_DRIVE = 'Google Drive',
   ONEDRIVE = 'OneDrive',
   AWS_S3 = 'AWS S3 Bucket'
+}
+
+export interface Scan {
+  id: string;
+  name: string;
+  location: StorageSource;
+  frequency: 'One-time' | 'Daily' | 'Weekly' | 'Monthly';
+  status: ScanStatus;
+  lastRun: string;
 }
 
 export interface PIIDetected {

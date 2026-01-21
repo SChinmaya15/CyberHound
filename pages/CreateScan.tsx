@@ -1,5 +1,6 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ChevronRight, 
   ChevronLeft, 
@@ -9,7 +10,9 @@ import {
   Lock, 
   ShieldCheck, 
   Eye, 
-  AlertCircle 
+  AlertCircle,
+  Save,
+  Rocket
 } from 'lucide-react';
 import { StorageSource } from '../types';
 
@@ -22,6 +25,8 @@ const steps = [
 ];
 
 const CreateScan: React.FC = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
@@ -32,6 +37,22 @@ const CreateScan: React.FC = () => {
     apiKey: '',
     secretKey: ''
   });
+
+  useEffect(() => {
+    if (id) {
+      // Mock loading data for edit mode
+      setFormData({
+        name: id === '1' ? 'Q4 Customer Data Scan' : 'Finance Shared Drive Daily',
+        location: id === '1' ? StorageSource.AWS_S3 : StorageSource.ONEDRIVE,
+        extensions: '.csv, .json',
+        frequency: id === '1' ? 'Weekly' : 'Daily',
+        action: 'Quarantine',
+        apiKey: '••••••••••••••••',
+        secretKey: '••••••••••••••••'
+      });
+      // Skip to review step if editing? Usually better to start at 1, but we'll stick to 1.
+    }
+  }, [id]);
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
@@ -200,7 +221,7 @@ const CreateScan: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto py-6">
       <div className="mb-10 text-center">
-        <h2 className="text-3xl font-bold text-slate-800">Configure New Scan</h2>
+        <h2 className="text-3xl font-bold text-slate-800">{id ? 'Edit Scan Configuration' : 'Configure New Scan'}</h2>
         <p className="text-slate-500 mt-2">Target your data sources and set compliance parameters</p>
       </div>
 
@@ -215,13 +236,14 @@ const CreateScan: React.FC = () => {
           {steps.map(step => (
             <div key={step.id} className="flex flex-col items-center">
               <div 
-                className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-300 ${
+                className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-300 cursor-pointer ${
                   step.id < currentStep 
                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' 
                     : step.id === currentStep 
                       ? 'bg-white border-indigo-600 text-indigo-600 shadow-xl' 
                       : 'bg-white border-slate-200 text-slate-400'
                 }`}
+                onClick={() => id && setCurrentStep(step.id)}
               >
                 {step.id < currentStep ? <Check size={20} /> : <step.icon size={20} />}
               </div>
@@ -253,23 +275,41 @@ const CreateScan: React.FC = () => {
             <span>Back</span>
           </button>
 
-          {currentStep < 5 ? (
-            <button 
-              onClick={nextStep}
-              className="flex items-center space-x-2 px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-            >
-              <span>Continue</span>
-              <ChevronRight size={20} />
-            </button>
-          ) : (
-            <button 
-              className="flex items-center space-x-2 px-10 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-              onClick={() => alert('Scan initiated!')}
-            >
-              <Check size={20} />
-              <span>Launch Scan</span>
-            </button>
-          )}
+          <div className="flex space-x-3">
+            {currentStep === 5 && (
+              <button 
+                className="flex items-center space-x-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm group"
+                onClick={() => {
+                  alert('Scan configuration saved successfully.');
+                  navigate('/scans');
+                }}
+              >
+                <Save size={18} className="group-hover:scale-110 transition-transform" />
+                <span>Save Configuration</span>
+              </button>
+            )}
+
+            {currentStep < 5 ? (
+              <button 
+                onClick={nextStep}
+                className="flex items-center space-x-2 px-8 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+              >
+                <span>Continue</span>
+                <ChevronRight size={20} />
+              </button>
+            ) : (
+              <button 
+                className="flex items-center space-x-2 px-10 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 group"
+                onClick={() => {
+                  alert('Scan launched immediately!');
+                  navigate('/scans');
+                }}
+              >
+                <Rocket size={20} className="group-hover:-translate-y-1 transition-transform" />
+                <span>Launch Now</span>
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

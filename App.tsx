@@ -12,11 +12,13 @@ import {
   X, 
   Bell, 
   User as UserIcon,
-  ChevronRight
+  ChevronRight,
+  List
 } from 'lucide-react';
 import { CyberHoundMascot } from './constants';
 import Dashboard from './pages/Dashboard';
 import CreateScan from './pages/CreateScan';
+import ScansList from './pages/ScansList';
 import Findings from './pages/Findings';
 import ScannedFiles from './pages/ScannedFiles';
 import SettingsPage from './pages/Settings';
@@ -69,6 +71,12 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               icon={LayoutDashboard} 
               label="Dashboard" 
               active={location.pathname === '/dashboard'} 
+            />
+            <SidebarItem 
+              to="/scans" 
+              icon={List} 
+              label="Scans List" 
+              active={location.pathname === '/scans'} 
             />
             <SidebarItem 
               to="/create-scan" 
@@ -155,7 +163,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const Login: React.FC = () => {
   return (
     <div className="min-h-screen gradient-bg flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-10 overflow-hidden relative">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-md p-10 overflow-hidden relative">
         <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500 rounded-full opacity-10"></div>
         <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-sky-500 rounded-full opacity-10"></div>
 
@@ -197,7 +205,9 @@ const App: React.FC = () => {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
+        <Route path="/scans" element={<AppLayout><ScansList /></AppLayout>} />
         <Route path="/create-scan" element={<AppLayout><CreateScan /></AppLayout>} />
+        <Route path="/edit-scan/:id" element={<AppLayout><CreateScan /></AppLayout>} />
         <Route path="/findings" element={<AppLayout><Findings /></AppLayout>} />
         <Route path="/scanned-files" element={<AppLayout><ScannedFiles /></AppLayout>} />
         <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
