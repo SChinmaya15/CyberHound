@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+const ai = new GoogleGenAI({ apiKey: "AIzaSyBVKMMsXwPnanJ5Kmm_UPu-WDf1UtsfAK0" });
 
 export const getSecurityInsights = async (findings: string) => {
   try {
