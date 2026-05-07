@@ -16,6 +16,8 @@ import {
   List
 } from 'lucide-react';
 import { CyberHoundMascot } from './constants';
+import { apiClient } from './api/client'; 
+import { saveToken, clearToken, isAuthenticated, restoreSession } from './services/authService';
 import Dashboard from './pages/Dashboard';
 import CreateScan from './pages/CreateScan';
 import ScansList from './pages/ScansList';
@@ -37,6 +39,13 @@ const SidebarItem: React.FC<{ to: string; icon: React.ElementType; label: string
     {active && <ChevronRight size={16} className="ml-auto" />}
   </Link>
 );
+
+const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+  return <>{children}</>;
+};
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -99,7 +108,14 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </nav>
 
           <div className="mt-auto pt-6 border-t border-slate-100">
-            <button className="flex items-center space-x-3 px-4 py-3 w-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors rounded-lg">
+            <button 
+              onClick={() => {
+                clearToken();
+                window.location.hash = '#/';
+                window.location.reload();
+              }}
+              className="flex items-center space-x-3 px-4 py-3 w-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors rounded-lg"
+            >
               <LogOut size={20} />
               <span className="font-medium">Logout</span>
             </button>
@@ -168,24 +184,26 @@ const Login: React.FC = () => {
     setError('');
     
     try {
-      // API Call
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ username, password }),
+      // Request for token using the API client
+      const response = await apiClient.post('https://localhost:7016/api/Users/login', {
+        username,
+        password
       });
       
-      if (response.ok) {
+      // Extract the token appropriately based on expected backend response type.
+      const token = response?.token || response?.accessToken || (typeof response === 'string' ? response : null);
+      
+      if (token) {
+        // Save the token to session storage and sync with apiClient
+        saveToken(token);
         navigate('/dashboard');
       } else {
-        // Fallback for demo purposes if backend isn't ready
-        setTimeout(() => navigate('/dashboard'), 500);
+        setError('Login failed: Token missing from response.');
+        console.warn('Login returned successfully, but no token was found in the response body:', response);
       }
-    } catch (err) {
-      // Fallback for demo purposes if backend isn't ready
-      setTimeout(() => navigate('/dashboard'), 500);
+    } catch (err: any) {
+      setError(err.message || 'Failed to connect or invalid credentials.');
+      console.error('Login Error:', err);
     } finally {
       setIsLoading(false);
     }
@@ -281,18 +299,23 @@ const Login: React.FC = () => {
 }
 
 const App: React.FC = () => {
+  // Restore any existing session token into apiClient on app startup
+  useEffect(() => {
+    restoreSession();
+  }, []);
+
   return (
     <HashRouter>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<AppLayout><Dashboard /></AppLayout>} />
-        <Route path="/scans" element={<AppLayout><ScansList /></AppLayout>} />
-        <Route path="/create-scan" element={<AppLayout><CreateScan /></AppLayout>} />
-        <Route path="/edit-scan/:id" element={<AppLayout><CreateScan /></AppLayout>} />
-        <Route path="/findings" element={<AppLayout><Findings /></AppLayout>} />
-        <Route path="/scanned-files" element={<AppLayout><ScannedFiles /></AppLayout>} />
-        <Route path="/settings" element={<AppLayout><SettingsPage /></AppLayout>} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
+        <Route path="/scans" element={<ProtectedRoute><AppLayout><ScansList /></AppLayout></ProtectedRoute>} />
+        <Route path="/create-scan" element={<ProtectedRoute><AppLayout><CreateScan /></AppLayout></ProtectedRoute>} />
+        <Route path="/edit-scan/:id" element={<ProtectedRoute><AppLayout><CreateScan /></AppLayout></ProtectedRoute>} />
+        <Route path="/findings" element={<ProtectedRoute><AppLayout><Findings /></AppLayout></ProtectedRoute>} />
+        <Route path="/scanned-files" element={<ProtectedRoute><AppLayout><ScannedFiles /></AppLayout></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
   );

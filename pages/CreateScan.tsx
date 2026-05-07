@@ -14,7 +14,8 @@ import {
   Save,
   Rocket
 } from 'lucide-react';
-import { StorageSource } from '../types';
+import { StorageSource, CreateScanRequest } from '../types';
+import { apiClient } from '../api/client';
 
 const steps = [
   { id: 1, title: 'Details', icon: Database },
@@ -56,6 +57,27 @@ const CreateScan: React.FC = () => {
 
   const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 5));
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  const handleSaveConfiguration = async () => {
+    try {
+      const request: CreateScanRequest = {
+        name: formData.name,
+        location: formData.location,
+        extensions: formData.extensions,
+        frequency: formData.frequency,
+        action: formData.action,
+        apiKey: formData.apiKey,
+        secretKey: formData.secretKey,
+      };
+
+      await apiClient.post('https://localhost:7016/api/scans/CreateScan', request);
+      alert('Scan configuration saved successfully.');
+      navigate('/scans');
+    } catch (error) {
+      console.error('Failed to save scan configuration:', error);
+      alert('Failed to save scan configuration. Please try again.');
+    }
+  };
 
   const renderStep = () => {
     switch (currentStep) {
@@ -279,10 +301,7 @@ const CreateScan: React.FC = () => {
             {currentStep === 5 && (
               <button 
                 className="flex items-center space-x-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-600 rounded-xl font-bold hover:bg-slate-50 hover:border-slate-300 transition-all shadow-sm group"
-                onClick={() => {
-                  alert('Scan configuration saved successfully.');
-                  navigate('/scans');
-                }}
+                onClick={handleSaveConfiguration}
               >
                 <Save size={18} className="group-hover:scale-110 transition-transform" />
                 <span>Save Configuration</span>

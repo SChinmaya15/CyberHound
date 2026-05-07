@@ -63,3 +63,13 @@ export interface ScanConfig {
   frequency: 'One-time' | 'Daily' | 'Weekly' | 'Monthly';
   action: 'Notify only' | 'Quarantine' | 'Auto-resolve' | 'None';
 }
+
+export interface CreateScanRequest {
+  name: string;
+  location: string;
+  extensions: string;
+  frequency: string;
+  action: string;
+  apiKey: string;
+  secretKey: string;
+}
