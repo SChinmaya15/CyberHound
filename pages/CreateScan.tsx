@@ -14,8 +14,9 @@ import {
   Save,
   Rocket
 } from 'lucide-react';
-import { StorageSource, CreateScanRequest } from '../types';
+import { CreateScanRequest, StorageSource } from '../types';
 import { apiClient } from '../api/client';
+import { ActionType, Frequency, StorageSourceEnum } from '../enums';
 
 const steps = [
   { id: 1, title: 'Details', icon: Database },
@@ -31,10 +32,10 @@ const CreateScan: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     name: '',
-    location: StorageSource.GOOGLE_DRIVE,
+    location: StorageSourceEnum.GOOGLE_DRIVE,
     extensions: '.pdf, .docx, .csv',
-    frequency: 'Weekly',
-    action: 'Notify only',
+    frequency: Frequency.Weekly,
+    action: ActionType.NotifyOnly,
     apiKey: '',
     secretKey: ''
   });
@@ -44,7 +45,7 @@ const CreateScan: React.FC = () => {
       // Mock loading data for edit mode
       setFormData({
         name: id === '1' ? 'Q4 Customer Data Scan' : 'Finance Shared Drive Daily',
-        location: id === '1' ? StorageSource.AWS_S3 : StorageSource.ONEDRIVE,
+        location: id === '1' ? StorageSourceEnum.AWS_S3 : StorageSourceEnum.GOOGLE_DRIVE,
         extensions: '.csv, .json',
         frequency: id === '1' ? 'Weekly' : 'Daily',
         action: 'Quarantine',
@@ -62,15 +63,16 @@ const CreateScan: React.FC = () => {
     try {
       const request: CreateScanRequest = {
         name: formData.name,
-        location: formData.location,
-        extensions: formData.extensions,
-        frequency: formData.frequency,
-        action: formData.action,
+        location:  0,
+        extensions: formData.extensions.split(","),
+        frequency: 0,
+        action: 0,
         apiKey: formData.apiKey,
         secretKey: formData.secretKey,
       };
+      debugger;
 
-      await apiClient.post('https://localhost:7016/api/scans/CreateScan', request);
+      await apiClient.post('scan', request);
       alert('Scan configuration saved successfully.');
       navigate('/scans');
     } catch (error) {

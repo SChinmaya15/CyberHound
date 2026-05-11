@@ -185,7 +185,7 @@ const Login: React.FC = () => {
     
     try {
       // Request for token using the API client
-      const response = await apiClient.post('https://localhost:7016/api/Users/login', {
+      const response = await apiClient.post('Users/login', {
         username,
         password
       });

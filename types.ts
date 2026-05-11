@@ -66,10 +66,10 @@ export interface ScanConfig {
 
 export interface CreateScanRequest {
   name: string;
-  location: string;
-  extensions: string;
-  frequency: string;
-  action: string;
+  location: number;
+  extensions: string[];
+  frequency: number;
+  action: number;
   apiKey: string;
   secretKey: string;
 }
