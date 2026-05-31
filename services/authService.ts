@@ -105,7 +105,7 @@ export async function post<T = any>(path: string, data?: any): Promise<T> {
  * const scan  = await get('scans/GetById', { id: '123' });
  */
 export async function get<T = any>(path: string, params?: Record<string, string>): Promise<T> {
-  return apiClient.get<T>(buildUrl(path), params ? { params } : undefined);
+  return apiClient.get<T>((path), params ? { params } : undefined);
 }
 
 /**

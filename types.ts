@@ -73,3 +73,44 @@ export interface CreateScanRequest {
   apiKey: string;
   secretKey: string;
 }
+
+export interface BackendScanId {
+  timestamp: number;
+  machine: number;
+  pid: number;
+  increment: number;
+  creationTime: string;
+}
+
+export interface BackendScan {
+  id: BackendScanId;
+  name: string;
+  status: string | null;
+  location: number;
+  frequency: number;
+  action: number;
+  extensions: string[];
+  apiKey: string;
+  secretKey: string;
+  lastRun: string | null;
+}
+
+export interface BackendFileRecordId {
+  timestamp: number;
+  machine: number;
+  pid: number;
+  increment: number;
+  creationTime: string;
+}
+
+export interface BackendFileRecord {
+  hasPii: boolean;
+  path: string;
+  fileName: string;
+  source: string | null;
+  lastScanned: string;
+  piiTypes: string[];
+  id: BackendFileRecordId;
+}
+
+
