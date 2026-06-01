@@ -17,6 +17,7 @@ import {
 import { CreateScanRequest, StorageSource } from '../types';
 import { apiClient } from '../api/client';
 import { ActionType, Frequency, StorageSourceEnum } from '../enums';
+import { runScan } from '../services/scanService';
 
 const steps = [
   { id: 1, title: 'Details', icon: Database },
@@ -25,6 +26,21 @@ const steps = [
   { id: 4, title: 'Actions', icon: ShieldCheck },
   { id: 5, title: 'Review', icon: Eye },
 ];
+
+const getStorageSourceName = (source: number): string => {
+  switch (source) {
+    case 0:
+      return 'Google Drive';
+    case 1:
+      return 'Dropbox';
+    case 2:
+      return 'Azure Blob';
+    case 3:
+      return 'AWS S3 Bucket';
+    default:
+      return 'Google Drive';
+  }
+};
 
 const CreateScan: React.FC = () => {
   const { id } = useParams();
@@ -62,15 +78,15 @@ const CreateScan: React.FC = () => {
   const handleSaveConfiguration = async () => {
     try {
       const request: CreateScanRequest = {
+        id: '', 
         name: formData.name,
-        location:  0,
+        location:  formData.location,
         extensions: formData.extensions.split(","),
-        frequency: 0,
-        action: 0,
+        frequency: formData.frequency,
+        action: formData.action,
         apiKey: formData.apiKey,
         secretKey: formData.secretKey,
       };
-      debugger;
 
       await apiClient.post('scan', request);
       alert('Scan configuration saved successfully.');
@@ -98,10 +114,16 @@ const CreateScan: React.FC = () => {
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Storage Location</label>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[StorageSource.GOOGLE_DRIVE, StorageSource.ONEDRIVE, StorageSource.AWS_S3].map(source => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                {[
+                  StorageSourceEnum.GOOGLE_DRIVE,
+                  StorageSourceEnum.DROPBOX,
+                  StorageSourceEnum.AZURE_BLOB,
+                  StorageSourceEnum.AWS_S3
+                ].map(source => (
                   <button 
                     key={source}
+                    type="button"
                     className={`p-4 border-2 rounded-xl flex flex-col items-center justify-center transition-all ${
                       formData.location === source 
                         ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' 
@@ -110,7 +132,7 @@ const CreateScan: React.FC = () => {
                     onClick={() => setFormData({...formData, location: source})}
                   >
                     <Database size={24} className="mb-2" />
-                    <span className="text-sm font-bold">{source}</span>
+                    <span className="text-sm font-bold">{getStorageSourceName(source)}</span>
                   </button>
                 ))}
               </div>
@@ -220,7 +242,7 @@ const CreateScan: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Location</p>
-                <p className="text-slate-700 font-medium">{formData.location}</p>
+                <p className="text-slate-700 font-medium">{getStorageSourceName(formData.location)}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Frequency</p>
@@ -321,8 +343,18 @@ const CreateScan: React.FC = () => {
             ) : (
               <button 
                 className="flex items-center space-x-2 px-10 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 group"
-                onClick={() => {
-                  alert('Scan launched immediately!');
+                onClick={async () => {
+                  if (id) {
+                    try {
+                      await runScan(id);
+                      alert('Scan launched successfully!');
+                    } catch (err) {
+                      console.error('Failed to launch scan:', err);
+                      alert('Failed to launch scan immediately.');
+                    }
+                  } else {
+                    alert('Scan launched immediately!');
+                  }
                   navigate('/scans');
                 }}
               >

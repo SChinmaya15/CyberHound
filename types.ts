@@ -15,9 +15,10 @@ export enum ScanStatus {
 }
 
 export enum StorageSource {
-  GOOGLE_DRIVE = 'Google Drive',
-  ONEDRIVE = 'OneDrive',
-  AWS_S3 = 'AWS S3 Bucket'
+  GOOGLE_DRIVE = 0,
+  DROPBOX= 1,
+  ONEDRIVE= 2,
+  AWS_S3 = 3
 }
 
 export interface Scan {
@@ -65,6 +66,7 @@ export interface ScanConfig {
 }
 
 export interface CreateScanRequest {
+  id: string;
   name: string;
   location: number;
   extensions: string[];

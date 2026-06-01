@@ -14,7 +14,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { Scan, ScanStatus, StorageSource, BackendScan } from '../types';
-import { getScanList } from '../services/scanService';
+import { getScanList, runScan } from '../services/scanService';
 
 const StatusBadge: React.FC<{ status: ScanStatus }> = ({ status }) => {
   const styles = {
@@ -156,7 +156,15 @@ const ScansList: React.FC = () => {
     if (action === 'edit') {
       navigate(`/edit-scan/${id}`);
     } else if (action === 'launch') {
-      alert(`Launching scan ${id}...`);
+      runScan(id)
+        .then(() => {
+          alert('Scan launched successfully.');
+          fetchScans();
+        })
+        .catch(err => {
+          console.error('Failed to launch scan:', err);
+          alert('Failed to launch scan. Please check if the service is running.');
+        });
     } else if (action === 'delete') {
       alert(`Deleting scan ${id}...`);
     }

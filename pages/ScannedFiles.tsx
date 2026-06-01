@@ -21,6 +21,21 @@ const SourceIcon: React.FC<{ source: StorageSource }> = ({ source }) => {
   }
 };
 
+const getStorageSourceName = (source: StorageSource): string => {
+  switch (source) {
+    case StorageSource.GOOGLE_DRIVE:
+      return 'Google Drive';
+    case StorageSource.DROPBOX:
+      return 'Dropbox';
+    case StorageSource.ONEDRIVE:
+      return 'Azure Blob';
+    case StorageSource.AWS_S3:
+      return 'AWS S3 Bucket';
+    default:
+      return 'Google Drive';
+  }
+};
+
 const ScannedFiles: React.FC = () => {
   const [files, setFiles] = useState<ScannedFile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -103,7 +118,8 @@ const ScannedFiles: React.FC = () => {
     const matchesSource = selectedSource === 'All Sources' || 
       (selectedSource === 'AWS S3' && file.source === StorageSource.AWS_S3) ||
       (selectedSource === 'Google Drive' && file.source === StorageSource.GOOGLE_DRIVE) ||
-      (selectedSource === 'OneDrive' && file.source === StorageSource.ONEDRIVE);
+      (selectedSource === 'Dropbox' && file.source === StorageSource.DROPBOX) ||
+      (selectedSource === 'Azure Blob' && file.source === StorageSource.ONEDRIVE);
 
     const matchesStatus = selectedStatus === 'All Statuses' ||
       (selectedStatus === 'Clean' && file.status === 'Clean') ||
@@ -175,7 +191,8 @@ const ScannedFiles: React.FC = () => {
               <option>All Sources</option>
               <option>AWS S3</option>
               <option>Google Drive</option>
-              <option>OneDrive</option>
+              <option>Dropbox</option>
+              <option>Azure Blob</option>
             </select>
           </div>
           <div className="flex items-center space-x-2">
@@ -265,7 +282,7 @@ const ScannedFiles: React.FC = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-2 text-slate-600 text-sm">
                         <SourceIcon source={file.source} />
-                        <span>{file.source}</span>
+                        <span>{getStorageSourceName(file.source)}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-500 font-medium">{file.date}</td>

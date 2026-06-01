@@ -91,7 +91,7 @@ function buildUrl(path: string): string {
  * await post('Users/login', { username, password });
  */
 export async function post<T = any>(path: string, data?: any): Promise<T> {
-  return apiClient.post<T>(buildUrl(path), data);
+  return apiClient.post<T>((path), data);
 }
 
 /**

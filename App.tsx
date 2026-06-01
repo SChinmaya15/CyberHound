@@ -87,12 +87,12 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               label="Scans List" 
               active={location.pathname === '/scans'} 
             />
-            <SidebarItem 
+            {/* <SidebarItem 
               to="/findings" 
               icon={ShieldAlert} 
               label="PII Findings" 
               active={location.pathname === '/findings'} 
-            />
+            /> */}
             <SidebarItem 
               to="/scanned-files" 
               icon={Files} 

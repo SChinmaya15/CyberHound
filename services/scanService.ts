@@ -6,7 +6,7 @@
  * automatically carries the Bearer token and targets the correct base URL.
  */
 
-import { get } from './authService';
+import { get, post } from './authService';
 import { BackendScan, BackendFileRecord } from '../types';
 
 // ──────────────────────────── Scan API Methods ────────────────────────────
@@ -35,5 +35,17 @@ export async function getScanList(): Promise<BackendScan[]> {
 export async function getFileRecords(): Promise<BackendFileRecord[]> {
   return get<BackendFileRecord[]>('FileRecord');
 }
+
+/**
+ * Run/launch a scan immediately by its ID.
+ *
+ * POST /api/Scan/RunScan
+ *
+ * @param id The ID of the scan to run.
+ */
+export async function runScan(id: string): Promise<any> {
+  return get(`Scan/RunScan?id=${id}`);
+}
+
 
 
