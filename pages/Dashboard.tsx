@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { COLORS } from '../constants';
 import { getSecurityInsights } from '../services/geminiService';
+import { Card } from '../components/ui/Card';
 
 const scanHistoryData = [
   { name: 'Mon', scans: 12, threats: 2 },
@@ -47,7 +48,7 @@ const renderCustomizedLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, per
 };
 
 const StatCard: React.FC<{ title: string; value: string | number; change: string; icon: any; color: string }> = ({ title, value, change, icon: Icon, color }) => (
-  <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
+  <Card className="p-6 hover:shadow-md transition-all group">
     <div className="flex justify-between items-start">
       <div>
         <p className="text-slate-500 text-sm font-medium">{title}</p>
@@ -58,11 +59,11 @@ const StatCard: React.FC<{ title: string; value: string | number; change: string
           <span className="text-slate-400 text-xs ml-1 font-medium">vs last month</span>
         </div>
       </div>
-      <div className={`p-3 rounded-xl ${color} text-white group-hover:scale-110 transition-transform`}>
+      <div className={`p-3 rounded-2xl ${color} text-white group-hover:scale-110 transition-transform`}>
         <Icon size={24} />
       </div>
     </div>
-  </div>
+  </Card>
 );
 
 const Dashboard: React.FC = () => {

@@ -165,8 +165,21 @@ class HttpClient {
   }
 }
 
+const getApiBaseUrl = (): string => {
+  const envBase = (import.meta as any).env?.VITE_API_BASE_URL?.trim();
+  if (envBase) {
+    return envBase.replace(/\/+$/, '') + '/';
+  }
+
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/api/`;
+  }
+
+  return '/api/';
+};
+
 // Exporting a singleton instance to be used everywhere in the code base on demand
-export const apiClient = new HttpClient('https://localhost:7016/api/');
+export const apiClient = new HttpClient(getApiBaseUrl());
 
 // We also export the class itself just in case one needs to instantiate multiple independent clients
 export default HttpClient;

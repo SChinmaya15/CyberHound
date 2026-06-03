@@ -74,6 +74,15 @@ export interface CreateScanRequest {
   action: number;
   apiKey: string;
   secretKey: string;
+  networkTargets?: string;
+  networkMode?: string;
+  networkUsername?: string;
+  networkPassword?: string;
+  networkSshKey?: string;
+  physicalPath?: string;
+  physicalScanMode?: string;
+  physicalUsername?: string;
+  physicalPassword?: string;
 }
 
 export interface BackendScanId {

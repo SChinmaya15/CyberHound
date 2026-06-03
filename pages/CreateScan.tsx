@@ -5,7 +5,14 @@ import {
   ChevronRight, 
   ChevronLeft, 
   Check, 
+  FileText,
+  SlidersHorizontal,
+  Key,
   Database, 
+  Box,
+  Cloud,
+  HardDrive,
+  Server,
   Settings, 
   Lock, 
   ShieldCheck, 
@@ -18,43 +25,110 @@ import { CreateScanRequest, StorageSource } from '../types';
 import { apiClient } from '../api/client';
 import { ActionType, Frequency, StorageSourceEnum } from '../enums';
 import { runScan } from '../services/scanService';
+import { Modal } from '../components/ui/Modal';
 
 const steps = [
-  { id: 1, title: 'Details', icon: Database },
-  { id: 2, title: 'Configuration', icon: Settings },
-  { id: 3, title: 'Credentials', icon: Lock },
+  { id: 1, title: 'Details', icon: FileText },
+  { id: 2, title: 'Configuration', icon: SlidersHorizontal },
+  { id: 3, title: 'Credentials', icon: Key },
   { id: 4, title: 'Actions', icon: ShieldCheck },
   { id: 5, title: 'Review', icon: Eye },
 ];
 
 const getStorageSourceName = (source: number): string => {
   switch (source) {
-    case 0:
+    case StorageSourceEnum.GOOGLE_DRIVE:
       return 'Google Drive';
-    case 1:
+    case StorageSourceEnum.DROPBOX:
       return 'Dropbox';
-    case 2:
+    case StorageSourceEnum.AZURE_BLOB:
       return 'Azure Blob';
-    case 3:
+    case StorageSourceEnum.AWS_S3:
       return 'AWS S3 Bucket';
+    case StorageSourceEnum.NETWORK:
+      return 'Network';
+    case StorageSourceEnum.ONEDRIVE:
+      return 'OneDrive';
+    case StorageSourceEnum.PHYSICAL:
+      return 'Physical';
     default:
       return 'Google Drive';
   }
 };
 
+const getStorageSourceIcon = (source: number) => {
+  switch (source) {
+    case StorageSourceEnum.GOOGLE_DRIVE:
+      return Cloud;
+    case StorageSourceEnum.DROPBOX:
+      return Box;
+    case StorageSourceEnum.AZURE_BLOB:
+      return Database;
+    case StorageSourceEnum.AWS_S3:
+      return HardDrive;
+    case StorageSourceEnum.NETWORK:
+      return Server;
+    case StorageSourceEnum.ONEDRIVE:
+      return Cloud;
+    case StorageSourceEnum.PHYSICAL:
+      return HardDrive;
+    default:
+      return Database;
+  }
+};
+
+const localSources = [
+  { id: StorageSourceEnum.PHYSICAL, label: 'Physical' },
+  { id: StorageSourceEnum.NETWORK, label: 'Network' },
+];
+
+const cloudSources = [
+  { id: StorageSourceEnum.GOOGLE_DRIVE, label: 'Google Drive' },
+  { id: StorageSourceEnum.DROPBOX, label: 'Dropbox' },
+  { id: StorageSourceEnum.AZURE_BLOB, label: 'Azure Blob' },
+  { id: StorageSourceEnum.AWS_S3, label: 'AWS S3' },
+  { id: StorageSourceEnum.ONEDRIVE, label: 'OneDrive' },
+];
+
 const CreateScan: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [modalState, setModalState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+    variant?: 'default' | 'danger';
+  } | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     location: StorageSourceEnum.GOOGLE_DRIVE,
     extensions: '.pdf, .docx, .csv',
+    networkTargets: '10.0.0.0/24',
+    networkMode: 'Active',
+    networkUsername: 'admin',
+    networkPassword: '',
+    networkSshKey: '',
+    physicalPath: 'E:\\',
+    physicalScanMode: 'Mounted Volume',
+    physicalUsername: 'local-admin',
+    physicalPassword: '',
     frequency: Frequency.Weekly,
     action: ActionType.NotifyOnly,
     apiKey: '',
     secretKey: ''
   });
+  const [sourceTab, setSourceTab] = useState<'Local' | 'Cloud'>('Local');
+
+  const switchSourceTab = (tab: 'Local' | 'Cloud') => {
+    setSourceTab(tab);
+    const activeSources = tab === 'Local' ? localSources : cloudSources;
+    if (!activeSources.some(source => source.id === formData.location)) {
+      setFormData({ ...formData, location: activeSources[0].id });
+    }
+  };
 
   useEffect(() => {
     if (id) {
@@ -78,22 +152,40 @@ const CreateScan: React.FC = () => {
   const handleSaveConfiguration = async () => {
     try {
       const request: CreateScanRequest = {
-        id: '', 
+        id: '',
         name: formData.name,
-        location:  formData.location,
-        extensions: formData.extensions.split(","),
+        location: formData.location,
+        extensions: formData.location === StorageSourceEnum.NETWORK ? [formData.networkTargets] : formData.extensions.split(","),
         frequency: formData.frequency,
         action: formData.action,
         apiKey: formData.apiKey,
         secretKey: formData.secretKey,
+        networkTargets: formData.location === StorageSourceEnum.NETWORK ? formData.networkTargets : undefined,
+        networkMode: formData.location === StorageSourceEnum.NETWORK ? formData.networkMode : undefined,
+        networkUsername: formData.location === StorageSourceEnum.NETWORK ? formData.networkUsername : undefined,
+        networkPassword: formData.location === StorageSourceEnum.NETWORK ? formData.networkPassword : undefined,
+        networkSshKey: formData.location === StorageSourceEnum.NETWORK ? formData.networkSshKey : undefined,
+        physicalPath: formData.location === StorageSourceEnum.PHYSICAL ? formData.physicalPath : undefined,
+        physicalScanMode: formData.location === StorageSourceEnum.PHYSICAL ? formData.physicalScanMode : undefined,
+        physicalUsername: formData.location === StorageSourceEnum.PHYSICAL ? formData.physicalUsername : undefined,
+        physicalPassword: formData.location === StorageSourceEnum.PHYSICAL ? formData.physicalPassword : undefined,
       };
 
       await apiClient.post('scan', request);
-      alert('Scan configuration saved successfully.');
-      navigate('/scans');
+      setModalState({
+        title: 'Scan configured',
+        message: 'Scan configuration saved successfully.',
+        confirmLabel: 'Go to scans',
+        onConfirm: () => navigate('/scans'),
+      });
     } catch (error) {
       console.error('Failed to save scan configuration:', error);
-      alert('Failed to save scan configuration. Please try again.');
+      setModalState({
+        title: 'Save failed',
+        message: 'Failed to save scan configuration. Please try again.',
+        confirmLabel: 'OK',
+        variant: 'danger',
+      });
     }
   };
 
@@ -113,46 +205,137 @@ const CreateScan: React.FC = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Storage Location</label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                {[
-                  StorageSourceEnum.GOOGLE_DRIVE,
-                  StorageSourceEnum.DROPBOX,
-                  StorageSourceEnum.AZURE_BLOB,
-                  StorageSourceEnum.AWS_S3
-                ].map(source => (
-                  <button 
-                    key={source}
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Data Source</label>
+              <div className="mb-4 flex rounded-xl bg-slate-100 p-1">
+              {(['Local', 'Cloud'] as const).map(tab => (
+                <button
+                  key={tab}
+                  type="button"
+                  onClick={() => switchSourceTab(tab)}
+                  className={`flex-1 rounded-xl px-4 py-2 text-sm font-semibold transition ${
+                    sourceTab === tab
+                      ? 'bg-white text-slate-900 shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+              {(sourceTab === 'Local' ? localSources : cloudSources).map(source => {
+                const SourceIcon = getStorageSourceIcon(source.id);
+                return (
+                  <button
+                    key={source.id}
                     type="button"
                     className={`p-4 border-2 rounded-xl flex flex-col items-center justify-center transition-all ${
-                      formData.location === source 
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm' 
+                      formData.location === source.id
+                        ? 'border-indigo-600 bg-indigo-50 text-indigo-700 shadow-sm'
                         : 'border-slate-100 hover:border-slate-200 text-slate-500'
                     }`}
-                    onClick={() => setFormData({...formData, location: source})}
+                    onClick={() => setFormData({ ...formData, location: source.id })}
                   >
-                    <Database size={24} className="mb-2" />
-                    <span className="text-sm font-bold">{getStorageSourceName(source)}</span>
+                    <SourceIcon size={24} className="mb-2" />
+                    <span className="text-sm font-bold">{source.label}</span>
                   </button>
-                ))}
-              </div>
+                );
+              })}
+            </div>
             </div>
           </div>
         );
       case 2:
         return (
           <div className="space-y-6 animate-in slide-in-from-right-4 duration-300">
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">File Extensions to Include</label>
-              <input 
-                type="text" 
-                placeholder=".pdf, .docx, .xlsx, .json"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-                value={formData.extensions}
-                onChange={e => setFormData({...formData, extensions: e.target.value})}
-              />
-              <p className="text-xs text-slate-400 mt-2">Comma separated values. Leave empty to scan all common document types.</p>
-            </div>
+            {formData.location === StorageSourceEnum.NETWORK ? (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Network Target Range</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. 10.0.0.0/24, 192.168.1.0/24"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.networkTargets}
+                    onChange={e => setFormData({ ...formData, networkTargets: e.target.value })}
+                  />
+                  <p className="text-xs text-slate-400 mt-2">Enter one or more CIDR ranges or host IPs for the network scan.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Network Scan Mode</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Active', 'Passive', 'Hybrid'].map(mode => (
+                      <button
+                        key={mode}
+                        className={`px-6 py-2 rounded-full border transition-all ${
+                          formData.networkMode === mode ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-600'
+                        }`}
+                        onClick={() => setFormData({ ...formData, networkMode: mode as any })}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Active probes scan hosts directly; passive mode analyzes network traffic.</p>
+                </div>
+              </>
+            ) : formData.location === StorageSourceEnum.PHYSICAL ? (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Physical Device Path</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. E:\\, /mnt/usb, \\SERVER\\SHARE"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.physicalPath}
+                    onChange={e => setFormData({ ...formData, physicalPath: e.target.value })}
+                  />
+                  <p className="text-xs text-slate-400 mt-2">Provide the local mount path or device share to scan.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Scan Mode</label>
+                  <div className="flex flex-wrap gap-2">
+                    {['Mounted Volume', 'Removable Media', 'Local Folder'].map(mode => (
+                      <button
+                        key={mode}
+                        className={`px-6 py-2 rounded-full border transition-all ${
+                          formData.physicalScanMode === mode ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-600'
+                        }`}
+                        onClick={() => setFormData({ ...formData, physicalScanMode: mode as any })}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-2">Choose the scan style for the attached physical source.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">File Extensions to Include</label>
+                  <input
+                    type="text"
+                    placeholder=".pdf, .docx, .xlsx, .json"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.extensions}
+                    onChange={e => setFormData({ ...formData, extensions: e.target.value })}
+                  />
+                  <p className="text-xs text-slate-400 mt-2">Comma separated values. Leave empty to scan all common document types.</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">File Extensions to Include</label>
+                  <input 
+                    type="text" 
+                    placeholder=".pdf, .docx, .xlsx, .json"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.extensions}
+                    onChange={e => setFormData({...formData, extensions: e.target.value})}
+                  />
+                  <p className="text-xs text-slate-400 mt-2">Comma separated values. Leave empty to scan all common document types.</p>
+                </div>
+              </>
+            )}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Scan Frequency</label>
               <div className="flex flex-wrap gap-2">
@@ -181,24 +364,92 @@ const CreateScan: React.FC = () => {
                 <p className="text-xs text-sky-600">Your credentials are encrypted with AES-256 before being stored in our secure vault.</p>
               </div>
             </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Access Key / Client ID</label>
-              <input 
-                type="password" 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-                value={formData.apiKey}
-                onChange={e => setFormData({...formData, apiKey: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-slate-700 mb-2">Secret Key</label>
-              <input 
-                type="password" 
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-                value={formData.secretKey}
-                onChange={e => setFormData({...formData, secretKey: e.target.value})}
-              />
-            </div>
+            {formData.location === StorageSourceEnum.NETWORK ? (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Network Admin Username</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.networkUsername}
+                    onChange={e => setFormData({ ...formData, networkUsername: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Network Admin Password</label>
+                  <input
+                    type="password"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.networkPassword}
+                    onChange={e => setFormData({ ...formData, networkPassword: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">SSH Key (optional)</label>
+                  <textarea
+                    rows={4}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.networkSshKey}
+                    onChange={e => setFormData({ ...formData, networkSshKey: e.target.value })}
+                    placeholder="Paste your SSH key for remote host authentication"
+                  />
+                </div>
+              </>
+            ) : formData.location === StorageSourceEnum.PHYSICAL ? (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Local Access Username</label>
+                  <input
+                    type="text"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.physicalUsername}
+                    onChange={e => setFormData({ ...formData, physicalUsername: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Local Access Password</label>
+                  <input
+                    type="password"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.physicalPassword}
+                    onChange={e => setFormData({ ...formData, physicalPassword: e.target.value })}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Access Method</label>
+                  <select
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.physicalScanMode}
+                    onChange={e => setFormData({ ...formData, physicalScanMode: e.target.value })}
+                  >
+                    <option>Mounted Volume</option>
+                    <option>Removable Media</option>
+                    <option>Local Folder</option>
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Access Key / Client ID</label>
+                  <input 
+                    type="password" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.apiKey}
+                    onChange={e => setFormData({...formData, apiKey: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700 mb-2">Secret Key</label>
+                  <input 
+                    type="password" 
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
+                    value={formData.secretKey}
+                    onChange={e => setFormData({...formData, secretKey: e.target.value})}
+                  />
+                </div>
+              </>
+            )}
           </div>
         );
       case 4:
@@ -273,33 +524,37 @@ const CreateScan: React.FC = () => {
 
       {/* Progress Indicator */}
       <div className="mb-12">
-        <div className="flex justify-between items-center relative">
-          <div className="absolute top-1/2 left-0 w-full h-0.5 bg-slate-200 -z-10 -translate-y-1/2"></div>
+        <div className="relative">
+          <div className="absolute inset-x-0 top-1/2 h-0.5 bg-slate-200 -z-10"></div>
           <div 
-            className="absolute top-1/2 left-0 h-0.5 bg-indigo-600 -z-10 -translate-y-1/2 transition-all duration-500"
-            style={{ width: `${(currentStep - 1) * 25}%` }}
-          ></div>
-          {steps.map(step => (
-            <div key={step.id} className="flex flex-col items-center">
-              <div 
-                className={`w-12 h-12 rounded-full flex items-center justify-center border-4 transition-all duration-300 cursor-pointer ${
+            className="absolute inset-y-1/2 left-0 h-0.5 bg-indigo-600 -z-10 transition-all duration-500"
+            style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+          />
+          <div className="relative grid grid-cols-5 gap-4">
+            {steps.map(step => (
+              <button
+                key={step.id}
+                type="button"
+                onClick={() => id && setCurrentStep(step.id)}
+                className="flex flex-col items-center text-center"
+              >
+                <span className={`flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-300 ${
                   step.id < currentStep 
                     ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' 
                     : step.id === currentStep 
                       ? 'bg-white border-indigo-600 text-indigo-600 shadow-xl' 
                       : 'bg-white border-slate-200 text-slate-400'
-                }`}
-                onClick={() => id && setCurrentStep(step.id)}
-              >
-                {step.id < currentStep ? <Check size={20} /> : <step.icon size={20} />}
-              </div>
-              <span className={`text-[10px] font-bold uppercase mt-2 tracking-widest ${
-                step.id === currentStep ? 'text-indigo-600' : 'text-slate-400'
-              }`}>
-                {step.title}
-              </span>
-            </div>
-          ))}
+                }`}>
+                  {step.id < currentStep ? <Check size={18} /> : <step.icon size={18} />}
+                </span>
+                <span className={`mt-2 text-[11px] font-semibold uppercase tracking-[0.18em] ${
+                  step.id === currentStep ? 'text-slate-900' : 'text-slate-400'
+                }`}>
+                  {step.title}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -308,6 +563,17 @@ const CreateScan: React.FC = () => {
         <div className="flex-1">
           {renderStep()}
         </div>
+
+        <Modal
+          open={!!modalState}
+          title={modalState?.title ?? ''}
+          message={modalState?.message ?? ''}
+          confirmLabel={modalState?.confirmLabel}
+          cancelLabel={modalState?.cancelLabel}
+          onConfirm={modalState?.onConfirm ?? (() => setModalState(null))}
+          onClose={() => setModalState(null)}
+          variant={modalState?.variant}
+        />
 
         <div className="flex justify-between mt-10 pt-8 border-t border-slate-100">
           <button 
@@ -347,15 +613,31 @@ const CreateScan: React.FC = () => {
                   if (id) {
                     try {
                       await runScan(id);
-                      alert('Scan launched successfully!');
+                      setModalState({
+                        title: 'Scan launched',
+                        message: 'Scan launched successfully!',
+                        confirmLabel: 'View scans',
+                        onConfirm: () => navigate('/scans'),
+                      });
+                      return;
                     } catch (err) {
                       console.error('Failed to launch scan:', err);
-                      alert('Failed to launch scan immediately.');
+                      setModalState({
+                        title: 'Launch failed',
+                        message: 'Failed to launch scan immediately.',
+                        confirmLabel: 'OK',
+                        variant: 'danger',
+                      });
+                      return;
                     }
-                  } else {
-                    alert('Scan launched immediately!');
                   }
-                  navigate('/scans');
+
+                  setModalState({
+                    title: 'Scan launched',
+                    message: 'Scan launched immediately!',
+                    confirmLabel: 'View scans',
+                    onConfirm: () => navigate('/scans'),
+                  });
                 }}
               >
                 <Rocket size={20} className="group-hover:-translate-y-1 transition-transform" />

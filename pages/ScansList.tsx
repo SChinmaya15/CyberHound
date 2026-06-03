@@ -6,13 +6,15 @@ import {
   Edit2, 
   Trash2, 
   Database, 
-  Search, 
   Plus,
   Clock,
   CheckCircle2,
   AlertCircle,
   RefreshCw
 } from 'lucide-react';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Modal } from '../components/ui/Modal';
 import { Scan, ScanStatus, StorageSource, BackendScan } from '../types';
 import { getScanList, runScan } from '../services/scanService';
 
@@ -40,8 +42,17 @@ const ScansList: React.FC = () => {
   const [scans, setScans] = useState<Scan[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [filterText, setFilterText] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [frequencyFilter, setFrequencyFilter] = useState('All');
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const [modalState, setModalState] = useState<{
+    title: string;
+    message: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
+    onConfirm?: () => void;
+    variant?: 'default' | 'danger';
+  } | null>(null);
 
   // Helper to map backend scans to frontend representation
   const mapBackendScanToScan = (bScan: BackendScan): Scan => {
@@ -158,46 +169,81 @@ const ScansList: React.FC = () => {
     } else if (action === 'launch') {
       runScan(id)
         .then(() => {
-          alert('Scan launched successfully.');
-          fetchScans();
+          setModalState({
+            title: 'Scan launched',
+            message: 'Scan launched successfully.',
+            confirmLabel: 'OK',
+            onConfirm: () => {
+              setModalState(null);
+              fetchScans();
+            },
+          });
         })
         .catch(err => {
           console.error('Failed to launch scan:', err);
-          alert('Failed to launch scan. Please check if the service is running.');
+          setModalState({
+            title: 'Launch failed',
+            message: 'Failed to launch scan. Please check if the service is running.',
+            confirmLabel: 'OK',
+            variant: 'danger',
+          });
         });
     } else if (action === 'delete') {
-      alert(`Deleting scan ${id}...`);
+      setModalState({
+        title: 'Delete scan',
+        message: `Are you sure you want to delete scan ${id}?`,
+        confirmLabel: 'Delete',
+        cancelLabel: 'Cancel',
+        variant: 'danger',
+        onConfirm: () => {
+          setModalState({
+            title: 'Delete requested',
+            message: `Scan ${id} deletion requested. This feature will be implemented soon.`,
+            confirmLabel: 'OK',
+          });
+        },
+      });
     }
   };
 
-  // Filter scans dynamically by search query
-  const filteredScans = scans.filter(scan => 
-    scan.name.toLowerCase().includes(filterText.toLowerCase()) ||
-    scan.location.toLowerCase().includes(filterText.toLowerCase())
-  );
+  const statusLabel = (status: ScanStatus) => {
+    switch (status) {
+      case ScanStatus.COMPLETED:
+        return 'Completed';
+      case ScanStatus.IN_PROGRESS:
+        return 'In Progress';
+      case ScanStatus.FAILED:
+        return 'Failed';
+      case ScanStatus.PENDING:
+        return 'Pending';
+      default:
+        return 'Draft';
+    }
+  };
+
+  const filteredScans = scans.filter((scan) => {
+    const statusMatches = statusFilter === 'All' || statusLabel(scan.status) === statusFilter;
+    const frequencyMatches = frequencyFilter === 'All' || scan.frequency === frequencyFilter;
+    return statusMatches && frequencyMatches;
+  });
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500" onClick={() => setOpenMenuId(null)}>
-      <div className="flex justify-between items-center">
-        <div>
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div className="space-y-1">
           <h2 className="text-2xl font-bold text-slate-800">Scans List</h2>
           <p className="text-slate-500">Manage and monitor all your PII data detection tasks</p>
         </div>
-        <div className="flex space-x-3">
-          <button 
-            onClick={fetchScans}
-            className="p-2.5 text-slate-500 hover:text-indigo-600 bg-white border border-slate-200 hover:border-indigo-100 rounded-xl transition-all shadow-sm hover:shadow-md flex items-center justify-center"
-            title="Refresh Scan List"
-          >
-            <RefreshCw size={18} className={isLoading ? 'animate-spin text-indigo-600' : ''} />
-          </button>
-          <button 
-            onClick={() => navigate('/create-scan')}
-            className="flex items-center space-x-2 px-6 py-2.5 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
-          >
-            <Plus size={18} />
-            <span>Create New Scan</span>
-          </button>
+        <div className="flex flex-wrap items-center gap-3 justify-end">
+          <span className="text-slate-500 text-sm">Review recent scans or start a new compliance workflow.</span>
+          <Button variant="outline" size="sm" className="rounded-2xl gap-2" onClick={fetchScans}>
+            <RefreshCw size={16} />
+            Refresh
+          </Button>
+          <Button variant="primary" size="md" className="rounded-2xl gap-2" onClick={() => navigate('/create-scan')}>
+            <Plus size={16} />
+            Create New Scan
+          </Button>
         </div>
       </div>
 
@@ -220,22 +266,41 @@ const ScansList: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
-          <div className="relative w-72">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Filter scans by name or location..." 
-              value={filterText}
-              onChange={(e) => setFilterText(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
-            />
+      <Card className="overflow-hidden">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/80 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(200px,_280px)_minmax(200px,_280px)] w-full">
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Filter by Status</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              >
+                <option>All</option>
+                <option>Completed</option>
+                <option>In Progress</option>
+                <option>Failed</option>
+                <option>Draft</option>
+                <option>Pending</option>
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <label className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Frequency</label>
+              <select
+                value={frequencyFilter}
+                onChange={(e) => setFrequencyFilter(e.target.value)}
+                className="w-full px-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm text-slate-700 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+              >
+                <option>All</option>
+                <option>Daily</option>
+                <option>Weekly</option>
+                <option>Monthly</option>
+              </select>
+            </div>
           </div>
-          <div className="flex items-center space-x-2 text-slate-450 text-xs font-bold uppercase tracking-widest">
-            <span>
-              {isLoading ? 'Loading...' : `Showing ${filteredScans.length} of ${scans.length} Scans`}
-            </span>
+          <div className="flex items-center justify-between w-full md:w-auto gap-3">
+            <span className="text-slate-500 text-sm font-semibold">{isLoading ? 'Loading scans...' : `Showing ${filteredScans.length} of ${scans.length} scans`}</span>
+            <div className="hidden md:block border-l border-slate-200 h-8"></div>
           </div>
         </div>
 
@@ -380,7 +445,7 @@ const ScansList: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };

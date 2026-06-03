@@ -1,173 +1,50 @@
 
-import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { 
-  LayoutDashboard, 
-  Search, 
-  ShieldAlert, 
-  Files, 
-  Settings, 
-  LogOut, 
-  Menu, 
-  X, 
-  Bell, 
-  User as UserIcon,
-  ChevronRight,
-  List
-} from 'lucide-react';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { HashRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { CyberHoundMascot } from './constants';
 import { apiClient } from './api/client'; 
-import { saveToken, clearToken, isAuthenticated, restoreSession } from './services/authService';
-import Dashboard from './pages/Dashboard';
-import CreateScan from './pages/CreateScan';
-import ScansList from './pages/ScansList';
-import Findings from './pages/Findings';
-import ScannedFiles from './pages/ScannedFiles';
-import SettingsPage from './pages/Settings';
+import { saveToken, saveUser, clearToken, isAuthenticated, restoreSession } from './services/authService';
+import { EnterpriseShell } from './components/layout/EnterpriseShell';
+import { Button } from './components/ui/Button';
 
-const SidebarItem: React.FC<{ to: string; icon: React.ElementType; label: string; active: boolean }> = ({ to, icon: Icon, label, active }) => (
-  <Link 
-    to={to} 
-    className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-      active 
-        ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-200' 
-        : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
-    }`}
-  >
-    <Icon size={20} />
-    <span className="font-medium">{label}</span>
-    {active && <ChevronRight size={16} className="ml-auto" />}
-  </Link>
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const CreateScan = lazy(() => import('./pages/CreateScan'));
+const ScansList = lazy(() => import('./pages/ScansList'));
+const Findings = lazy(() => import('./pages/Findings'));
+const ScannedFiles = lazy(() => import('./pages/ScannedFiles'));
+const SettingsPage = lazy(() => import('./pages/Settings'));
+
+const PageFallback: React.FC = () => (
+  <div className="min-h-[60vh] flex items-center justify-center text-slate-500 text-sm">
+    Loading application…
+  </div>
+);
+
+const LazyPage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <Suspense fallback={<PageFallback />}>{children}</Suspense>
 );
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!isAuthenticated()) {
     return <Navigate to="/" replace />;
   }
+
   return <>{children}</>;
 };
 
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const location = useLocation();
+  const navigate = useNavigate();
 
-  return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {/* Mobile Overlay */}
-      {!sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden" 
-          onClick={() => setSidebarOpen(true)}
-        />
-      )}
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
 
-      {/* Sidebar */}
-      <aside className={`
-        fixed md:relative z-30 h-full w-64 bg-white border-r border-slate-200 transition-transform duration-300 transform
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-      `}>
-        <div className="p-6 flex flex-col h-full">
-          <div className="flex items-center space-x-3 mb-10">
-            <div className="bg-indigo-600 p-2 rounded-xl text-white">
-              <CyberHoundMascot className="w-8 h-8" />
-            </div>
-            <h1 className="text-xl font-bold text-slate-800 tracking-tight">CyberHound</h1>
-          </div>
+  const handleLogout = () => {
+    clearToken();
+    navigate('/');
+  };
 
-          <nav className="flex-1 space-y-2">
-            <SidebarItem 
-              to="/dashboard" 
-              icon={LayoutDashboard} 
-              label="Dashboard" 
-              active={location.pathname === '/dashboard'} 
-            />
-            <SidebarItem 
-              to="/scans" 
-              icon={List} 
-              label="Scans List" 
-              active={location.pathname === '/scans'} 
-            />
-            {/* <SidebarItem 
-              to="/findings" 
-              icon={ShieldAlert} 
-              label="PII Findings" 
-              active={location.pathname === '/findings'} 
-            /> */}
-            <SidebarItem 
-              to="/scanned-files" 
-              icon={Files} 
-              label="Scanned Files" 
-              active={location.pathname === '/scanned-files'} 
-            />
-            <SidebarItem 
-              to="/settings" 
-              icon={Settings} 
-              label="Settings" 
-              active={location.pathname === '/settings'} 
-            />
-          </nav>
-
-          <div className="mt-auto pt-6 border-t border-slate-100">
-            <button 
-              onClick={() => {
-                clearToken();
-                window.location.hash = '#/';
-                window.location.reload();
-              }}
-              className="flex items-center space-x-3 px-4 py-3 w-full text-slate-400 hover:text-rose-500 hover:bg-rose-50 transition-colors rounded-lg"
-            >
-              <LogOut size={20} />
-              <span className="font-medium">Logout</span>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8">
-          <button 
-            className="md:hidden text-slate-500" 
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-          >
-            <Menu size={24} />
-          </button>
-          
-          <div className="flex-1 hidden md:block">
-            <div className="relative w-64">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="text" 
-                placeholder="Search scans, findings..." 
-                className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center space-x-4">
-            <button className="p-2 text-slate-400 hover:bg-slate-50 rounded-full relative">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-white"></span>
-            </button>
-            <div className="h-8 w-px bg-slate-200 mx-2"></div>
-            <div className="flex items-center space-x-3 cursor-pointer group">
-              <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600 group-hover:bg-indigo-100 transition-colors">
-                <UserIcon size={18} />
-              </div>
-              <div className="hidden lg:block">
-                <p className="text-sm font-semibold text-slate-700 leading-none">Guest User</p>
-                <p className="text-xs text-slate-400 mt-1">Enterprise Admin</p>
-              </div>
-            </div>
-          </div>
-        </header>
-
-        <section className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-          {children}
-        </section>
-      </main>
-    </div>
-  );
+  return <EnterpriseShell onLogout={handleLogout}>{children}</EnterpriseShell>;
 };
 
 const Login: React.FC = () => {
@@ -196,6 +73,16 @@ const Login: React.FC = () => {
       if (token) {
         // Save the token to session storage and sync with apiClient
         saveToken(token);
+
+        const userProfile = response?.user || {
+          id: 'guest',
+          name: username,
+          email: username.includes('@') ? username : `${username}@enterprise.com`,
+          role: 'Admin',
+          status: 'Active'
+        };
+
+        saveUser(userProfile);
         navigate('/dashboard');
       } else {
         setError('Login failed: Token missing from response.');
@@ -224,12 +111,7 @@ const Login: React.FC = () => {
         </div>
 
         <div className="space-y-4 relative z-10">
-          <Link 
-            to="/dashboard" 
-            className="block w-full bg-indigo-600 text-white text-center py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 hover:shadow-indigo-200"
-          >
-            Enter as Guest
-          </Link>
+          <Button fullWidth variant="primary" size="lg" onClick={() => navigate('/dashboard')}>Enter as Guest</Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-100"></div>
@@ -240,16 +122,24 @@ const Login: React.FC = () => {
           </div>
           {!showCredentials ? (
             <>
-              <button 
+              <Button 
                 type="button"
+                fullWidth
+                variant="primary"
+                size="lg"
                 onClick={() => setShowCredentials(true)}
-                className="w-full bg-indigo-600 text-white text-center py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 hover:shadow-indigo-200"
               >
                 Login with Credentials
-              </button>
-              <button disabled className="w-full bg-slate-50 text-slate-400 py-4 rounded-xl font-bold cursor-not-allowed border border-slate-100">
+              </Button>
+              <Button 
+                type="button"
+                fullWidth
+                variant="outline"
+                size="lg"
+                disabled
+              >
                 Full SSO Login (Coming Soon)
-              </button>
+              </Button>
             </>
           ) : (
             <form onSubmit={handleLogin} className="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
@@ -275,20 +165,12 @@ const Login: React.FC = () => {
               {error && <p className="text-rose-500 text-sm font-medium text-center">{error}</p>}
               
               <div className="flex space-x-3 mt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowCredentials(false)}
-                  className="w-1/3 py-4 rounded-xl font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all border border-slate-200"
-                >
-                  Back
-                </button>
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="w-2/3 bg-indigo-600 text-white py-4 rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 flex justify-center items-center"
-                >
-                  {isLoading ? 'Logging in...' : 'Login'}
-                </button>
+                <Button type="button" variant="outline" size="lg" className="w-1/3" onClick={() => setShowCredentials(false)}>
+                Back
+              </Button>
+              <Button type="submit" fullWidth variant="primary" size="lg" disabled={isLoading} className="w-2/3">
+                {isLoading ? 'Logging in...' : 'Login'}
+              </Button>
               </div>
             </form>
           )}
@@ -308,13 +190,13 @@ const App: React.FC = () => {
     <HashRouter>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<ProtectedRoute><AppLayout><Dashboard /></AppLayout></ProtectedRoute>} />
-        <Route path="/scans" element={<ProtectedRoute><AppLayout><ScansList /></AppLayout></ProtectedRoute>} />
-        <Route path="/create-scan" element={<ProtectedRoute><AppLayout><CreateScan /></AppLayout></ProtectedRoute>} />
-        <Route path="/edit-scan/:id" element={<ProtectedRoute><AppLayout><CreateScan /></AppLayout></ProtectedRoute>} />
-        <Route path="/findings" element={<ProtectedRoute><AppLayout><Findings /></AppLayout></ProtectedRoute>} />
-        <Route path="/scanned-files" element={<ProtectedRoute><AppLayout><ScannedFiles /></AppLayout></ProtectedRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><AppLayout><SettingsPage /></AppLayout></ProtectedRoute>} />
+        <Route path="/dashboard" element={<ProtectedRoute><AppLayout><LazyPage><Dashboard /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/scans" element={<ProtectedRoute><AppLayout><LazyPage><ScansList /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/create-scan" element={<ProtectedRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/edit-scan/:id" element={<ProtectedRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/findings" element={<ProtectedRoute><AppLayout><LazyPage><Findings /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/scanned-files" element={<ProtectedRoute><AppLayout><LazyPage><ScannedFiles /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/settings" element={<ProtectedRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>

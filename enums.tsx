@@ -19,5 +19,8 @@ export enum StorageSourceEnum
    GOOGLE_DRIVE=0,
    DROPBOX=1,
    AZURE_BLOB=2,
-   AWS_S3=3
+   AWS_S3=3,
+   NETWORK=4,
+   ONEDRIVE=5,
+   PHYSICAL=6
 }
