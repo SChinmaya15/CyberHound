@@ -21,7 +21,7 @@ import {
   Save,
   Rocket
 } from 'lucide-react';
-import { CreateScanRequest, StorageSource } from '../types';
+import { CreateScanRequest, LaunchScanRequest, StorageSource } from '../types';
 import { apiClient } from '../api/client';
 import { ActionType, Frequency, StorageSourceEnum } from '../enums';
 import { runScan } from '../services/scanService';
@@ -74,6 +74,28 @@ const getStorageSourceIcon = (source: number) => {
       return HardDrive;
     default:
       return Database;
+  }
+};
+
+const getScanType = (location: number): string => {
+  switch (location) {
+    case StorageSourceEnum.PHYSICAL: return 'LocalFolder';
+    case StorageSourceEnum.NETWORK: return 'Network';
+    case StorageSourceEnum.GOOGLE_DRIVE: return 'GoogleDrive';
+    case StorageSourceEnum.DROPBOX: return 'Dropbox';
+    case StorageSourceEnum.AZURE_BLOB: return 'AzureBlob';
+    case StorageSourceEnum.AWS_S3: return 'AWSS3';
+    case StorageSourceEnum.ONEDRIVE: return 'OneDrive';
+    default: return 'LocalFolder';
+  }
+};
+
+const mapActionType = (action: string): string => {
+  switch (action) {
+    case 'Notify only': return 'NotifyOnly';
+    case 'Quarantine': return 'Quarantine';
+    case 'Auto-resolve': return 'AutoResolve';
+    default: return 'None';
   }
 };
 
@@ -610,34 +632,103 @@ const CreateScan: React.FC = () => {
               <button 
                 className="flex items-center space-x-2 px-10 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 group"
                 onClick={async () => {
-                  if (id) {
-                    try {
-                      await runScan(id);
-                      setModalState({
-                        title: 'Scan launched',
-                        message: 'Scan launched successfully!',
-                        confirmLabel: 'View scans',
-                        onConfirm: () => navigate('/scans'),
-                      });
-                      return;
-                    } catch (err) {
-                      console.error('Failed to launch scan:', err);
-                      setModalState({
-                        title: 'Launch failed',
-                        message: 'Failed to launch scan immediately.',
-                        confirmLabel: 'OK',
-                        variant: 'danger',
-                      });
-                      return;
-                    }
-                  }
+                  const isPhysical = formData.location === StorageSourceEnum.PHYSICAL;
+                  const isNetwork = formData.location === StorageSourceEnum.NETWORK;
 
-                  setModalState({
-                    title: 'Scan launched',
-                    message: 'Scan launched immediately!',
-                    confirmLabel: 'View scans',
-                    onConfirm: () => navigate('/scans'),
-                  });
+                  const sourcePath = isPhysical
+                    ? formData.physicalPath
+                    : isNetwork
+                      ? formData.networkTargets
+                      : '';
+
+                  const sourceScanMode = isPhysical
+                    ? formData.physicalScanMode
+                    : isNetwork
+                      ? formData.networkMode
+                      : '';
+
+                  const sourceUsername = isPhysical
+                    ? formData.physicalUsername
+                    : isNetwork
+                      ? formData.networkUsername
+                      : '';
+
+                  const sourcePassword = isPhysical
+                    ? formData.physicalPassword
+                    : isNetwork
+                      ? formData.networkPassword
+                      : '';
+
+                  const extensions = formData.extensions
+                    .split(',')
+                    .map(e => e.trim())
+                    .filter(Boolean);
+
+                  const frequencyStr = typeof formData.frequency === 'number'
+                    ? (['Daily', 'Weekly', 'Monthly'] as const)[formData.frequency] ?? 'One-time'
+                    : (formData.frequency as string);
+
+                  const request: LaunchScanRequest = {
+                    scanName: formData.name,
+                    agents: [],
+                    scanType: getScanType(formData.location),
+                    source: {
+                      location: formData.location,
+                      path: sourcePath,
+                      scanMode: sourceScanMode,
+                      credentials: {
+                        username: sourceUsername,
+                        passwordEncrypted: sourcePassword,
+                      },
+                    },
+                    filters: {
+                      extensions,
+                      includeSubDirectories: true,
+                      maxFileSizeMB: 100,
+                    },
+                    schedule: {
+                      frequency: frequencyStr,
+                      nextRun: null,
+                    },
+                    actions: {
+                      type: mapActionType(formData.action as string),
+                      quarantinePath: null,
+                      remediationEnabled: false,
+                    },
+                    detection: {
+                      scanForPII: true,
+                      entities: ['Aadhaar', 'PAN', 'PhoneNumber', 'Email', 'BankAccount'],
+                    },
+                    cloudCredentials: {
+                      apiKey: formData.apiKey,
+                      secretKey: formData.secretKey,
+                    },
+                    execution: {
+                      overwriteExistingResults: true,
+                      stopPreviousScan: true,
+                      parallelThreads: 4,
+                      retryCount: 3,
+                      logLevel: 'Information',
+                    },
+                  };
+
+                  try {
+                    await runScan(request);
+                    setModalState({
+                      title: 'Scan launched',
+                      message: 'Scan launched successfully!',
+                      confirmLabel: 'View scans',
+                      onConfirm: () => navigate('/scans'),
+                    });
+                  } catch (err) {
+                    console.error('Failed to launch scan:', err);
+                    setModalState({
+                      title: 'Launch failed',
+                      message: 'Failed to launch scan. Please try again.',
+                      confirmLabel: 'OK',
+                      variant: 'danger',
+                    });
+                  }
                 }}
               >
                 <Rocket size={20} className="group-hover:-translate-y-1 transition-transform" />

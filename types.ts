@@ -65,6 +65,50 @@ export interface ScanConfig {
   action: 'Notify only' | 'Quarantine' | 'Auto-resolve' | 'None';
 }
 
+export interface LaunchScanRequest {
+  scanName: string;
+  agents: string[];
+  scanType: string;
+  source: {
+    location: number;
+    path: string;
+    scanMode: string;
+    credentials: {
+      username: string;
+      passwordEncrypted: string;
+    };
+  };
+  filters: {
+    extensions: string[];
+    includeSubDirectories: boolean;
+    maxFileSizeMB: number;
+  };
+  schedule: {
+    frequency: string;
+    nextRun: string | null;
+  };
+  actions: {
+    type: string;
+    quarantinePath: string | null;
+    remediationEnabled: boolean;
+  };
+  detection: {
+    scanForPII: boolean;
+    entities: string[];
+  };
+  cloudCredentials: {
+    apiKey: string;
+    secretKey: string;
+  };
+  execution: {
+    overwriteExistingResults: boolean;
+    stopPreviousScan: boolean;
+    parallelThreads: number;
+    retryCount: number;
+    logLevel: string;
+  };
+}
+
 export interface CreateScanRequest {
   id: string;
   name: string;

@@ -15,8 +15,28 @@ import {
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
-import { Scan, ScanStatus, StorageSource, BackendScan } from '../types';
+import { Scan, ScanStatus, StorageSource, BackendScan, LaunchScanRequest } from '../types';
 import { getScanList, runScan } from '../services/scanService';
+
+const LOCATION_LABELS: Record<number, string> = {
+  0: 'Google Drive',
+  1: 'Dropbox',
+  2: 'Azure Blob',
+  3: 'AWS S3 Bucket',
+  4: 'Network',
+  5: 'OneDrive',
+  6: 'Physical',
+};
+
+const SCAN_TYPES: Record<number, string> = {
+  0: 'GoogleDrive',
+  1: 'Dropbox',
+  2: 'AzureBlob',
+  3: 'AWSS3',
+  4: 'Network',
+  5: 'OneDrive',
+  6: 'LocalFolder',
+};
 
 const StatusBadge: React.FC<{ status: ScanStatus }> = ({ status }) => {
   const styles = {
@@ -59,25 +79,6 @@ const ScansList: React.FC = () => {
     const idStr = bScan.id && typeof bScan.id === 'object'
       ? `${bScan.id.timestamp}-${bScan.id.machine}-${bScan.id.pid}-${bScan.id.increment}`
       : (typeof bScan.id === 'string' ? bScan.id : Math.random().toString());
-
-    // Map location number to string
-    let locationString = 'Google Drive';
-    switch (bScan.location) {
-      case 0:
-        locationString = 'Google Drive';
-        break;
-      case 1:
-        locationString = 'Dropbox';
-        break;
-      case 2:
-        locationString = 'Azure Blob';
-        break;
-      case 3:
-        locationString = 'AWS S3 Bucket';
-        break;
-      default:
-        locationString = 'Google Drive';
-    }
 
     // Map frequency number to frequency string
     let frequencyString: 'One-time' | 'Daily' | 'Weekly' | 'Monthly' = 'Weekly';
@@ -127,10 +128,10 @@ const ScansList: React.FC = () => {
     return {
       id: idStr,
       name: bScan.name || 'Untitled Scan',
-      location: locationString as any,
+      location: bScan.location as any,
       frequency: frequencyString,
       status: statusMapped,
-      lastRun: lastRunString
+      lastRun: lastRunString,
     };
   };
 
@@ -167,7 +168,27 @@ const ScansList: React.FC = () => {
     if (action === 'edit') {
       navigate(`/edit-scan/${id}`);
     } else if (action === 'launch') {
-      runScan(id)
+      const scan = scans.find(s => s.id === id);
+      const locationNum = (scan?.location as unknown as number) ?? 0;
+      const request: LaunchScanRequest = {
+        scanId: id,
+        scanName: scan?.name ?? '',
+        agents: [],
+        scanType: SCAN_TYPES[locationNum] ?? 'LocalFolder',
+        source: {
+          location: locationNum,
+          path: '',
+          scanMode: '',
+          credentials: { username: '', passwordEncrypted: '' },
+        },
+        filters: { extensions: [], includeSubDirectories: true, maxFileSizeMB: 100 },
+        schedule: { frequency: scan?.frequency ?? 'One-time', nextRun: null },
+        actions: { type: 'NotifyOnly', quarantinePath: null, remediationEnabled: false },
+        detection: { scanForPII: true, entities: ['Aadhaar', 'PAN', 'PhoneNumber', 'Email', 'BankAccount'] },
+        cloudCredentials: { apiKey: '', secretKey: '' },
+        execution: { overwriteExistingResults: true, stopPreviousScan: true, parallelThreads: 4, retryCount: 3, logLevel: 'Information' },
+      };
+      runScan(request)
         .then(() => {
           setModalState({
             title: 'Scan launched',
@@ -381,7 +402,7 @@ const ScansList: React.FC = () => {
                     <td className="px-8 py-5">
                       <div className="flex items-center space-x-2 text-slate-500 text-sm">
                         <Database size={14} className="text-slate-400" />
-                        <span>{scan.location}</span>
+                        <span>{LOCATION_LABELS[scan.location as unknown as number] ?? scan.location}</span>
                       </div>
                     </td>
                     <td className="px-8 py-5">

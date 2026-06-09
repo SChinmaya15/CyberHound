@@ -7,7 +7,7 @@
  */
 
 import { get, post } from './authService';
-import { BackendScan, BackendFileRecord } from '../types';
+import { BackendScan, BackendFileRecord, LaunchScanRequest } from '../types';
 
 // ──────────────────────────── Scan API Methods ────────────────────────────
 
@@ -37,14 +37,14 @@ export async function getFileRecords(): Promise<BackendFileRecord[]> {
 }
 
 /**
- * Run/launch a scan immediately by its ID.
+ * Run/launch a scan immediately by posting the full scan request body.
  *
  * POST /api/Scan/RunScan
  *
- * @param id The ID of the scan to run.
+ * @param request The full launch scan payload.
  */
-export async function runScan(id: string): Promise<any> {
-  return get(`Scan/RunScan?id=${id}`);
+export async function runScan(request: LaunchScanRequest): Promise<any> {
+  return post('Scan/RunScan', request);
 }
 
 
