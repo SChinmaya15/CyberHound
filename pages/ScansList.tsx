@@ -16,6 +16,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Scan, ScanStatus, StorageSource, BackendScan, LaunchScanRequest } from '../types';
+import { StorageSourceEnum } from '../enums';
 import { getScanList, runScan } from '../services/scanService';
 
 const LOCATION_LABELS: Record<number, string> = {
@@ -170,10 +171,23 @@ const ScansList: React.FC = () => {
     } else if (action === 'launch') {
       const scan = scans.find(s => s.id === id);
       const locationNum = (scan?.location as unknown as number) ?? 0;
+
+      if (locationNum === StorageSourceEnum.PHYSICAL || locationNum === StorageSourceEnum.NETWORK) {
+        setModalState({
+          title: 'Agent selection required',
+          message: 'Please select at least one agent before submitting the scan request.',
+          confirmLabel: 'Open scan',
+          cancelLabel: 'Cancel',
+          onConfirm: () => navigate(`/edit-scan/${id}`),
+          variant: 'danger',
+        });
+        return;
+      }
+
       const request: LaunchScanRequest = {
-        scanId: id,
         scanName: scan?.name ?? '',
         agents: [],
+        agentIds: [],
         scanType: SCAN_TYPES[locationNum] ?? 'LocalFolder',
         source: {
           location: locationNum,

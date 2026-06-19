@@ -65,9 +65,23 @@ export interface ScanConfig {
   action: 'Notify only' | 'Quarantine' | 'Auto-resolve' | 'None';
 }
 
+export interface LaunchScanAgentAssignment {
+  agentId: string;
+  status: string;
+}
+
+export interface AgentOption {
+  id: string;
+  name: string;
+  status: string;
+  isActive: boolean;
+  isAvailable: boolean;
+}
+
 export interface LaunchScanRequest {
   scanName: string;
   agents: string[];
+  agentIds: LaunchScanAgentAssignment[];
   scanType: string;
   source: {
     location: number;

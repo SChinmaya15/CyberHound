@@ -21,9 +21,10 @@ import {
   Save,
   Rocket
 } from 'lucide-react';
-import { CreateScanRequest, LaunchScanRequest, StorageSource } from '../types';
+import { AgentOption, CreateScanRequest, LaunchScanRequest } from '../types';
 import { apiClient } from '../api/client';
 import { ActionType, Frequency, StorageSourceEnum } from '../enums';
+import { getAvailableAgents } from '../services/agentService';
 import { runScan } from '../services/scanService';
 import { Modal } from '../components/ui/Modal';
 
@@ -112,6 +113,9 @@ const cloudSources = [
   { id: StorageSourceEnum.ONEDRIVE, label: 'OneDrive' },
 ];
 
+const requiresAgentSelection = (location: number) =>
+  location === StorageSourceEnum.PHYSICAL || location === StorageSourceEnum.NETWORK;
+
 const CreateScan: React.FC = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -127,6 +131,7 @@ const CreateScan: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '',
     location: StorageSourceEnum.GOOGLE_DRIVE,
+    selectedAgentIds: [] as string[],
     extensions: '.pdf, .docx, .csv',
     networkTargets: '10.0.0.0/24',
     networkMode: 'Active',
@@ -143,6 +148,42 @@ const CreateScan: React.FC = () => {
     secretKey: ''
   });
   const [sourceTab, setSourceTab] = useState<'Local' | 'Cloud'>('Local');
+  const [availableAgents, setAvailableAgents] = useState<AgentOption[]>([]);
+  const [isLoadingAgents, setIsLoadingAgents] = useState(false);
+  const [agentValidationError, setAgentValidationError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    setIsLoadingAgents(true);
+    getAvailableAgents()
+      .then((agents) => {
+        if (isMounted) {
+          setAvailableAgents(agents);
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load agents:', error);
+        if (isMounted) {
+          setAvailableAgents([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingAgents(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!requiresAgentSelection(formData.location) && agentValidationError) {
+      setAgentValidationError(null);
+    }
+  }, [agentValidationError, formData.location]);
 
   const switchSourceTab = (tab: 'Local' | 'Cloud') => {
     setSourceTab(tab);
@@ -155,7 +196,8 @@ const CreateScan: React.FC = () => {
   useEffect(() => {
     if (id) {
       // Mock loading data for edit mode
-      setFormData({
+      setFormData(prev => ({
+        ...prev,
         name: id === '1' ? 'Q4 Customer Data Scan' : 'Finance Shared Drive Daily',
         location: id === '1' ? StorageSourceEnum.AWS_S3 : StorageSourceEnum.GOOGLE_DRIVE,
         extensions: '.csv, .json',
@@ -163,15 +205,54 @@ const CreateScan: React.FC = () => {
         action: 'Quarantine',
         apiKey: '••••••••••••••••',
         secretKey: '••••••••••••••••'
-      });
+      }));
       // Skip to review step if editing? Usually better to start at 1, but we'll stick to 1.
     }
   }, [id]);
 
-  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, 5));
+  const validateAgentSelection = (targetStep = 2): boolean => {
+    if (!requiresAgentSelection(formData.location)) {
+      setAgentValidationError(null);
+      return true;
+    }
+
+    if (formData.selectedAgentIds.length > 0) {
+      setAgentValidationError(null);
+      return true;
+    }
+
+    setAgentValidationError('Please select at least one agent before submitting the scan request.');
+    setCurrentStep(targetStep);
+    return false;
+  };
+
+  const nextStep = () => {
+    if (currentStep === 2 && !validateAgentSelection(2)) {
+      return;
+    }
+
+    setCurrentStep(prev => Math.min(prev + 1, 5));
+  };
   const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+  const toggleAgentSelection = (agentId: string) => {
+    setFormData(prev => {
+      const alreadySelected = prev.selectedAgentIds.includes(agentId);
+
+      return {
+        ...prev,
+        selectedAgentIds: alreadySelected
+          ? prev.selectedAgentIds.filter(id => id !== agentId)
+          : [...prev.selectedAgentIds, agentId],
+      };
+    });
+    setAgentValidationError(null);
+  };
 
   const handleSaveConfiguration = async () => {
+    if (!validateAgentSelection(2)) {
+      return;
+    }
+
     try {
       const request: CreateScanRequest = {
         id: '',
@@ -358,6 +439,53 @@ const CreateScan: React.FC = () => {
                 </div>
               </>
             )}
+            {requiresAgentSelection(formData.location) && (
+              <div>
+                <div className="flex items-center justify-between gap-4 mb-2">
+                  <label className="block text-sm font-semibold text-slate-700">Agents *</label>
+                  <p className="text-xs text-slate-400">Only active and available agents are listed.</p>
+                </div>
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  {isLoadingAgents ? (
+                    <p className="px-2 py-3 text-sm text-slate-500">Loading available agents...</p>
+                  ) : availableAgents.length === 0 ? (
+                    <p className="px-2 py-3 text-sm text-slate-500">No active and available agents are currently available.</p>
+                  ) : (
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      {availableAgents.map(agent => {
+                        const isSelected = formData.selectedAgentIds.includes(agent.id);
+
+                        return (
+                          <label
+                            key={agent.id}
+                            className={`flex cursor-pointer items-start gap-3 rounded-xl border px-4 py-3 transition-all ${
+                              isSelected
+                                ? 'border-indigo-600 bg-white shadow-sm'
+                                : 'border-slate-200 bg-white hover:border-slate-300'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleAgentSelection(agent.id)}
+                              className="mt-1 h-4 w-4 rounded border-slate-300 text-indigo-600"
+                            />
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-semibold text-slate-800">{agent.name}</p>
+                              <p className="text-xs text-slate-500">ID: {agent.id}</p>
+                              <p className="text-xs text-emerald-600">{agent.status}</p>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                {agentValidationError && (
+                  <p className="mt-2 text-sm text-rose-600">{agentValidationError}</p>
+                )}
+              </div>
+            )}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Scan Frequency</label>
               <div className="flex flex-wrap gap-2">
@@ -525,6 +653,16 @@ const CreateScan: React.FC = () => {
                 <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Detection Action</p>
                 <p className="text-slate-700 font-medium">{formData.action}</p>
               </div>
+              {requiresAgentSelection(formData.location) && (
+                <div>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider mb-1">Agents</p>
+                  <p className="text-slate-700 font-medium">
+                    {formData.selectedAgentIds.length > 0
+                      ? `${formData.selectedAgentIds.length} selected`
+                      : 'None selected'}
+                  </p>
+                </div>
+              )}
             </div>
             <div className="p-4 bg-amber-50 rounded-xl flex items-center space-x-3 border border-amber-100">
               <AlertCircle className="text-amber-600" size={20} />
@@ -634,6 +772,13 @@ const CreateScan: React.FC = () => {
                 onClick={async () => {
                   const isPhysical = formData.location === StorageSourceEnum.PHYSICAL;
                   const isNetwork = formData.location === StorageSourceEnum.NETWORK;
+                  if (!validateAgentSelection(2)) {
+                    return;
+                  }
+
+                  const selectedAgents = requiresAgentSelection(formData.location)
+                    ? formData.selectedAgentIds
+                    : [];
 
                   const sourcePath = isPhysical
                     ? formData.physicalPath
@@ -670,7 +815,11 @@ const CreateScan: React.FC = () => {
 
                   const request: LaunchScanRequest = {
                     scanName: formData.name,
-                    agents: [],
+                    agents: selectedAgents,
+                    agentIds: selectedAgents.map(agentId => ({
+                      agentId,
+                      status: 'Scheduled',
+                    })),
                     scanType: getScanType(formData.location),
                     source: {
                       location: formData.location,
