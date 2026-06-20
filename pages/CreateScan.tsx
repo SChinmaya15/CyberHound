@@ -151,6 +151,7 @@ const CreateScan: React.FC = () => {
   const [availableAgents, setAvailableAgents] = useState<AgentOption[]>([]);
   const [isLoadingAgents, setIsLoadingAgents] = useState(false);
   const [agentValidationError, setAgentValidationError] = useState<string | null>(null);
+  const [scanNameError, setScanNameError] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -210,6 +211,33 @@ const CreateScan: React.FC = () => {
     }
   }, [id]);
 
+  const validateScanName = (): boolean => {
+    const trimmedName = formData.name.trim();
+
+    if (!trimmedName) {
+      setScanNameError('Scan name is required.');
+      return false;
+    }
+
+    if (trimmedName.length < 3) {
+      setScanNameError('Scan name must be at least 3 characters long.');
+      return false;
+    }
+
+    if (trimmedName.length > 100) {
+      setScanNameError('Scan name must not exceed 100 characters.');
+      return false;
+    }
+
+    if (!/^[a-zA-Z0-9\s._-]+$/.test(trimmedName)) {
+      setScanNameError('Scan name can only contain letters, numbers, spaces, dots, hyphens, and underscores.');
+      return false;
+    }
+
+    setScanNameError(null);
+    return true;
+  };
+
   const validateAgentSelection = (targetStep = 2): boolean => {
     if (!requiresAgentSelection(formData.location)) {
       setAgentValidationError(null);
@@ -227,6 +255,10 @@ const CreateScan: React.FC = () => {
   };
 
   const nextStep = () => {
+    if (currentStep === 1 && !validateScanName()) {
+      return;
+    }
+
     if (currentStep === 2 && !validateAgentSelection(2)) {
       return;
     }
@@ -302,10 +334,21 @@ const CreateScan: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="e.g. Q4 Financial Records Scan"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                className={`w-full px-4 py-3 bg-slate-50 border rounded-xl focus:ring-2 focus:ring-indigo-500 outline-none transition-all ${
+                  scanNameError ? 'border-red-500 focus:ring-red-500' : 'border-slate-200'
+                }`}
                 value={formData.name}
-                onChange={e => setFormData({...formData, name: e.target.value})}
+                onChange={e => {
+                  setFormData({...formData, name: e.target.value});
+                  setScanNameError(null);
+                }}
               />
+              {scanNameError && (
+                <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+                  <AlertCircle className="w-4 h-4" />
+                  {scanNameError}
+                </p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-2">Data Source</label>
