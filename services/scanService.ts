@@ -7,15 +7,13 @@
  */
 
 import { get, post } from './authService';
-import { BackendScan, BackendFileRecord, LaunchScanRequest } from '../types';
+import { BackendScan, BackendFileRecord, CreateScanRequest } from '../types';
 
 // ──────────────────────────── Scan API Methods ────────────────────────────
-const SCAN_ENDPOINTS = ['scan', 'Scan', 'Scans'] as const;
-
 /**
  * Fetch the full list of scans from the API.
  *
- * GET  /api/Scan/GetScanList
+ * GET  /api/Scan/GetScans
  *
  * @returns A promise that resolves to the array of raw scan objects.
  *
@@ -23,7 +21,7 @@ const SCAN_ENDPOINTS = ['scan', 'Scan', 'Scans'] as const;
  * const scans = await getScanList();
  */
 export async function getScanList(): Promise<BackendScan[]> {
-  return get<BackendScan[]>('Scan/GetScanList');
+  return get<BackendScan[]>('Scan/GetScans');
 }
 
 /**
@@ -38,15 +36,23 @@ export async function getFileRecords(): Promise<BackendFileRecord[]> {
 }
 
 /**
- * Run/launch a scan immediately by posting the full scan request body.
+ * Save a scan configuration.
+ *
+ * POST /api/Scan/CreateScan
+ *
+ * @param request The create scan payload.
+ */
+export async function saveScan(request: CreateScanRequest): Promise<any> {
+  return post('Scan/CreateScan', request);
+}
+
+/**
+ * Run/launch a scan immediately.
  *
  * POST /api/Scan/RunScan
  *
- * @param request The full launch scan payload.
+ * @param scanId The scan identifier to run.
  */
-export async function runScan(request: LaunchScanRequest): Promise<any> {
-  return post('scan', request);
+export async function runScan(scanId: string): Promise<any> {
+  return post('Scan/RunScan', { scanId });
 }
-
-
-

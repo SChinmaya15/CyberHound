@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  MoreVertical, 
   Play, 
-  Edit2, 
-  Trash2, 
   Database, 
   Plus,
   Clock,
@@ -15,8 +12,7 @@ import {
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
-import { Scan, ScanStatus, StorageSource, BackendScan, LaunchScanRequest } from '../types';
-import { StorageSourceEnum } from '../enums';
+import { Scan, ScanStatus, StorageSource, BackendScan } from '../types';
 import { getScanList, runScan } from '../services/scanService';
 
 const LOCATION_LABELS: Record<number, string> = {
@@ -27,16 +23,6 @@ const LOCATION_LABELS: Record<number, string> = {
   4: 'Network',
   5: 'OneDrive',
   6: 'Physical',
-};
-
-const SCAN_TYPES: Record<number, string> = {
-  0: 'GoogleDrive',
-  1: 'Dropbox',
-  2: 'AzureBlob',
-  3: 'AWSS3',
-  4: 'Network',
-  5: 'OneDrive',
-  6: 'LocalFolder',
 };
 
 const StatusBadge: React.FC<{ status: ScanStatus }> = ({ status }) => {
@@ -65,7 +51,6 @@ const ScansList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('All');
   const [frequencyFilter, setFrequencyFilter] = useState('All');
-  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{
     title: string;
     message: string;
@@ -158,72 +143,33 @@ const ScansList: React.FC = () => {
     fetchScans();
   }, []);
 
-  const toggleMenu = (id: string, e: React.MouseEvent) => {
+  const handleRunScan = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    setOpenMenuId(openMenuId === id ? null : id);
-  };
-
-  const handleAction = (action: string, id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setOpenMenuId(null);
-    if (action === 'edit') {
-      navigate(`/edit-scan/${id}`);
-    } else if (action === 'launch') {
-      const scan = scans.find(s => s.id === id);
-      const locationNum = (scan?.location as unknown as number) ?? 0;
-
-      if (locationNum === StorageSourceEnum.PHYSICAL || locationNum === StorageSourceEnum.NETWORK) {
+    runScan(id)
+      .then(() => {
         setModalState({
-          title: 'Agent selection required',
-          message: 'Please select at least one agent before submitting the scan request.',
-          confirmLabel: 'Open scan',
-          cancelLabel: 'Cancel',
-          onConfirm: () => navigate(`/edit-scan/${id}`),
+          title: 'Scan launched',
+          message: 'Scan launched successfully.',
+          confirmLabel: 'OK',
+          onConfirm: () => {
+            setModalState(null);
+            fetchScans();
+          },
+        });
+      })
+      .catch(err => {
+        console.error('Failed to launch scan:', err);
+        setModalState({
+          title: 'Launch failed',
+          message: 'Failed to launch scan. Please check if the service is running.',
+          confirmLabel: 'OK',
           variant: 'danger',
         });
-        return;
-      }
+      });
+  };
 
-      const request: LaunchScanRequest = {
-        scanName: scan?.name ?? '',
-        agents: [],
-        agentIds: [],
-        scanType: SCAN_TYPES[locationNum] ?? 'LocalFolder',
-        source: {
-          location: locationNum,
-          path: '',
-          scanMode: '',
-          credentials: { username: '', passwordEncrypted: '' },
-        },
-        filters: { extensions: [], includeSubDirectories: true, maxFileSizeMB: 100 },
-        schedule: { frequency: scan?.frequency ?? 'One-time', nextRun: null },
-        actions: { type: 'NotifyOnly', quarantinePath: null, remediationEnabled: false },
-        detection: { scanForPII: true, entities: ['Aadhaar', 'PAN', 'PhoneNumber', 'Email', 'BankAccount'] },
-        cloudCredentials: { apiKey: '', secretKey: '' },
-        execution: { overwriteExistingResults: true, stopPreviousScan: true, parallelThreads: 4, retryCount: 3, logLevel: 'Information' },
-      };
-      runScan(request)
-        .then(() => {
-          setModalState({
-            title: 'Scan launched',
-            message: 'Scan launched successfully.',
-            confirmLabel: 'OK',
-            onConfirm: () => {
-              setModalState(null);
-              fetchScans();
-            },
-          });
-        })
-        .catch(err => {
-          console.error('Failed to launch scan:', err);
-          setModalState({
-            title: 'Launch failed',
-            message: 'Failed to launch scan. Please check if the service is running.',
-            confirmLabel: 'OK',
-            variant: 'danger',
-          });
-        });
-    } else if (action === 'delete') {
+  const handleDelete = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
       setModalState({
         title: 'Delete scan',
         message: `Are you sure you want to delete scan ${id}?`,
@@ -238,19 +184,22 @@ const ScansList: React.FC = () => {
           });
         },
       });
-    }
   };
 
   const statusLabel = (status: ScanStatus) => {
     switch (status) {
-      case ScanStatus.COMPLETED:
-        return 'Completed';
-      case ScanStatus.IN_PROGRESS:
+      case ScanStatus.DRAFT:
+        return 'Draft';
+      case ScanStatus.RUNNING:
         return 'In Progress';
       case ScanStatus.FAILED:
         return 'Failed';
       case ScanStatus.PENDING:
         return 'Pending';
+      case ScanStatus.SCHEDULED:
+        return 'Scheduled';
+      case ScanStatus.COMPLETED:
+        return 'Completed';
       default:
         return 'Draft';
     }
@@ -263,7 +212,7 @@ const ScansList: React.FC = () => {
   });
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500" onClick={() => setOpenMenuId(null)}>
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="space-y-1">
           <h2 className="text-2xl font-bold text-slate-800">Scans List</h2>
@@ -387,19 +336,15 @@ const ScansList: React.FC = () => {
                       <div>
                         <p className="font-bold text-slate-700 text-base">No scans found</p>
                         <p className="text-sm text-slate-400 mt-1">
-                          {filterText 
-                            ? "We couldn't find any scans matching your filter query." 
-                            : "Get started by creating a compliance scan targeting your data sources."}
+                          Get started by creating a compliance scan targeting your data sources.
                         </p>
                       </div>
-                      {!filterText && (
-                        <button 
-                          onClick={() => navigate('/create-scan')}
-                          className="mt-2 px-6 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-sm rounded-xl transition-all"
-                        >
-                          Configure First Scan
-                        </button>
-                      )}
+                      <button 
+                        onClick={() => navigate('/create-scan')}
+                        className="mt-2 px-6 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-sm rounded-xl transition-all"
+                      >
+                        Configure First Scan
+                      </button>
                     </div>
                   </td>
                 </tr>
@@ -429,39 +374,21 @@ const ScansList: React.FC = () => {
                       {scan.lastRun}
                     </td>
                     <td className="px-8 py-5 text-right relative">
-                      <button 
-                        className="p-2 text-slate-400 hover:text-indigo-600 hover:bg-white rounded-lg transition-all"
-                        onClick={(e) => toggleMenu(scan.id, e)}
-                      >
-                        <MoreVertical size={18} />
-                      </button>
-                      
-                      {openMenuId === scan.id && (
-                        <div className="absolute right-8 top-12 w-48 bg-white border border-slate-100 rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                          <button 
-                            onClick={(e) => handleAction('launch', scan.id, e)}
-                            className="w-full px-4 py-3 text-left text-sm font-medium text-slate-600 hover:bg-emerald-50 hover:text-emerald-600 flex items-center space-x-3 transition-colors"
-                          >
-                            <Play size={14} />
-                            <span>Launch Now</span>
-                          </button>
-                          <button 
-                            onClick={(e) => handleAction('edit', scan.id, e)}
-                            className="w-full px-4 py-3 text-left text-sm font-medium text-slate-600 hover:bg-indigo-50 hover:text-indigo-600 flex items-center space-x-3 transition-colors"
-                          >
-                            <Edit2 size={14} />
-                            <span>Edit Configuration</span>
-                          </button>
-                          <div className="h-px bg-slate-50"></div>
-                          <button 
-                            onClick={(e) => handleAction('delete', scan.id, e)}
-                            className="w-full px-4 py-3 text-left text-sm font-medium text-rose-500 hover:bg-rose-50 flex items-center space-x-3 transition-colors"
-                          >
-                            <Trash2 size={14} />
-                            <span>Delete Scan</span>
-                          </button>
-                        </div>
-                      )}
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={(e) => handleRunScan(scan.id, e)}
+                          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition-all"
+                        >
+                          <Play size={14} />
+                          <span>Run Scan</span>
+                        </button>
+                        <button
+                          onClick={(e) => handleDelete(scan.id, e)}
+                          className="inline-flex items-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition-all"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))

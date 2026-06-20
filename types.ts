@@ -7,11 +7,12 @@ export enum PIILevel {
 }
 
 export enum ScanStatus {
-  COMPLETED = 'Completed',
-  IN_PROGRESS = 'In Progress',
-  PENDING = 'Pending',
+  DRAFT = 'Draft',
   FAILED = 'Failed',
-  DRAFT = 'Draft'
+  RUNNING = 'Running',
+  PENDING = 'Pending',
+  SCHEDULED = 'Scheduled',
+  COMPLETED = 'Completed',
 }
 
 export enum StorageSource {
@@ -28,15 +29,6 @@ export interface Scan {
   frequency: 'One-time' | 'Daily' | 'Weekly' | 'Monthly';
   status: ScanStatus;
   lastRun: string;
-}
-
-export interface PIIDetected {
-  id: string;
-  type: string;
-  count: number;
-  severity: PIILevel;
-  status: 'Detected' | 'In-Progress' | 'Resolved';
-  lastSeen: string;
 }
 
 export interface ScannedFile {
@@ -57,31 +49,23 @@ export interface User {
   status: 'Active' | 'Inactive';
 }
 
-export interface ScanConfig {
-  name: string;
-  location: StorageSource;
-  fileExtensions: string[];
-  frequency: 'One-time' | 'Daily' | 'Weekly' | 'Monthly';
-  action: 'Notify only' | 'Quarantine' | 'Auto-resolve' | 'None';
-}
-
 export interface LaunchScanAgentAssignment {
   agentId: string;
-  status: string;
+  status: ScanStatus;
 }
 
 export interface AgentOption {
   id: string;
   name: string;
-  status: string;
   isActive: boolean;
+  status: ScanStatus;
   isAvailable: boolean;
 }
 
-export interface LaunchScanRequest {
-  scanName: string;
-  agents: string[];
-  agentIds: LaunchScanAgentAssignment[];
+export interface ScanConfiguration {
+  name: string;
+  status: ScanStatus;
+  agents: LaunchScanAgentAssignment[];
   scanType: string;
   source: {
     location: number;
@@ -124,23 +108,8 @@ export interface LaunchScanRequest {
 }
 
 export interface CreateScanRequest {
-  id: string;
-  name: string;
-  location: number;
-  extensions: string[];
-  frequency: number;
-  action: number;
-  apiKey: string;
-  secretKey: string;
-  networkTargets?: string;
-  networkMode?: string;
-  networkUsername?: string;
-  networkPassword?: string;
-  networkSshKey?: string;
-  physicalPath?: string;
-  physicalScanMode?: string;
-  physicalUsername?: string;
-  physicalPassword?: string;
+  isLaunched: boolean;
+  scan: ScanConfiguration;
 }
 
 export interface BackendScanId {
