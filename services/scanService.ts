@@ -10,6 +10,7 @@ import { get, post } from './authService';
 import { BackendScan, BackendFileRecord, LaunchScanRequest } from '../types';
 
 // ──────────────────────────── Scan API Methods ────────────────────────────
+const SCAN_ENDPOINTS = ['scan', 'Scan', 'Scans'] as const;
 
 /**
  * Fetch the full list of scans from the API.
@@ -44,7 +45,7 @@ export async function getFileRecords(): Promise<BackendFileRecord[]> {
  * @param request The full launch scan payload.
  */
 export async function runScan(request: LaunchScanRequest): Promise<any> {
-  return post('Scan/RunScan', request);
+  return post('scan', request);
 }
 
 
