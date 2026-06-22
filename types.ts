@@ -7,10 +7,11 @@ export enum PIILevel {
 }
 
 export enum ScanStatus {
-  DRAFT = 'Draft',
+  IDLE = 'Idle',
   FAILED = 'Failed',
   RUNNING = 'Running',
   PENDING = 'Pending',
+  QUEUED = 'Queued',
   SCHEDULED = 'Scheduled',
   COMPLETED = 'Completed',
 }
