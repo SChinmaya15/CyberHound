@@ -17,6 +17,7 @@ import { User } from '../types';
 
 const TOKEN_KEY = 'session_auth_token';
 const USER_KEY = 'session_user_profile';
+const DEFAULT_TENANT_ID = '98ef6dfe-e0d8-4aee-913f-18908c52eeaf';
 
 // ──────────────────────────── Token Management ────────────────────────────
 
@@ -39,6 +40,44 @@ export function getToken(): string | null {
     return window.sessionStorage.getItem(TOKEN_KEY);
   }
   return null;
+}
+
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  const [, payload] = token.split('.');
+  if (!payload) {
+    return null;
+  }
+
+  try {
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+    return JSON.parse(window.atob(padded)) as Record<string, unknown>;
+  } catch {
+    return null;
+  }
+}
+
+export function getTenantIdFromToken(): string {
+  const token = getToken();
+  if (!token || typeof window === 'undefined') {
+    return DEFAULT_TENANT_ID;
+  }
+
+  const payload = decodeJwtPayload(token);
+  if (!payload) {
+    return DEFAULT_TENANT_ID;
+  }
+
+  const tenantId =
+    payload.tenantId ??
+    payload.TenantId ??
+    payload.tenant_id ??
+    payload.tid ??
+    payload['http://schemas.microsoft.com/identity/claims/tenantid'] ??
+    payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/tenantid'] ??
+    payload['http://schemas.pii-scanner.com/claims/tenantid'];
+
+  return typeof tenantId === 'string' && tenantId ? tenantId : DEFAULT_TENANT_ID;
 }
 
 /**
@@ -138,6 +177,16 @@ export async function get<T = any>(path: string, params?: Record<string, string>
  */
 export async function put<T = any>(path: string, data?: any): Promise<T> {
   return apiClient.put<T>(path, data);
+}
+
+/**
+ * Centralised PATCH request.
+ * @param path   Controller/action path, e.g. "subscription/tenant/{tenantId}"
+ * @param data   Request body (any model)
+ * @returns      Parsed response data
+ */
+export async function patch<T = any>(path: string, data?: any): Promise<T> {
+  return apiClient.patch<T>(path, data);
 }
 
 /**

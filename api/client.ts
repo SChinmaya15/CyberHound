@@ -156,6 +156,16 @@ class HttpClient {
   }
 
   /**
+   * Perform a PATCH request.
+   * @param endpoint The route endpoint
+   * @param data The JSON body to send (optional)
+   * @param options Optional RequestOptions
+   */
+  public patch<T = any>(endpoint: string, data?: any, options?: Omit<RequestOptions, 'method' | 'data'>): Promise<T> {
+    return this.request<T>(endpoint, { ...options, data, method: 'PATCH' });
+  }
+
+  /**
    * Perform a DELETE request.
    * @param endpoint The route endpoint
    * @param options Optional RequestOptions

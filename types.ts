@@ -49,6 +49,38 @@ export interface User {
   status: 'Active' | 'Inactive';
 }
 
+export type SubscriptionModel = 'UserBased' | 'PayPerUse' | 'PayPerScan' | 'OneTimeCharge';
+
+export interface CreateSubscriptionRequest {
+  tenantId: string;
+  model: SubscriptionModel;
+  startDate?: string | null;
+  endDate?: string | null;
+  planName?: string;
+}
+
+export interface UpdateSubscriptionRequest {
+  subscriptionId: string;
+  isActive?: boolean | null;
+  planName?: string | null;
+  endDate?: string | null;
+  startDate?: string | null;
+  model?: SubscriptionModel | null;
+}
+
+export interface Subscription {
+  id?: string;
+  subscriptionId?: string;
+  tenantId: string;
+  model: SubscriptionModel;
+  isActive?: boolean | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  planName?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface LaunchScanAgentAssignment {
   agentId: string;
   status: ScanStatus;

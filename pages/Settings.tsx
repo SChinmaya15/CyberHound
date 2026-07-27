@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { 
   Building, 
   Users, 
@@ -10,8 +10,22 @@ import {
   Shield, 
   Globe, 
   Save,
-  CheckCircle2
+  CheckCircle2,
+  CreditCard,
+  Calendar,
+  Loader2,
+  RefreshCw,
+  AlertCircle,
+  XCircle
 } from 'lucide-react';
+import {
+  createSubscription,
+  deleteSubscription,
+  getSubscriptionByTenant,
+  updateSubscription,
+} from '../services/subscriptionService';
+import { getTenantIdFromToken } from '../services/authService';
+import { Subscription, SubscriptionModel } from '../types';
 
 const users = [
   { id: '1', name: 'Alex Johnson', email: 'alex.j@enterprise.com', role: 'Admin', status: 'Active' },
@@ -19,23 +33,188 @@ const users = [
   { id: '3', name: 'Michael Scott', email: 'mscott@dundermifflin.com', role: 'Viewer', status: 'Inactive' },
 ];
 
+const subscriptionModels: { value: SubscriptionModel; label: string; description: string }[] = [
+  { value: 'PayPerUse', label: 'Pay per use', description: 'Meter tenant activity and bill on actual usage.' },
+  { value: 'UserBased', label: 'User based', description: 'Bill by active users under this tenant.' },
+  { value: 'PayPerScan', label: 'Pay per scan', description: 'Charge for each completed scan run.' },
+  { value: 'OneTimeCharge', label: 'One-time charge', description: 'Single commercial agreement or trial setup.' },
+];
+
+const toDateInputValue = (date?: string | null): string => {
+  if (!date) {
+    return '';
+  }
+
+  return date.slice(0, 10);
+};
+
 const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'tenant' | 'users'>('tenant');
+  const [activeTab, setActiveTab] = useState<'tenant' | 'users' | 'subscription'>('tenant');
+  const [tenantId] = useState(getTenantIdFromToken);
   const [showSaved, setShowSaved] = useState(false);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const [isSavingSubscription, setIsSavingSubscription] = useState(false);
+  const [isDeletingSubscription, setIsDeletingSubscription] = useState(false);
+  const [subscriptionMessage, setSubscriptionMessage] = useState('');
+  const [subscriptionError, setSubscriptionError] = useState('');
+  const previousActiveTab = useRef<typeof activeTab | null>(null);
+  const [subscriptionForm, setSubscriptionForm] = useState({
+    planName: '',
+    model: 'PayPerUse' as SubscriptionModel,
+    isActive: true,
+    startDate: '',
+    endDate: '',
+  });
 
   const handleSave = () => {
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 3000);
   };
 
+  const applySubscription = (nextSubscription: Subscription | null) => {
+    setSubscription(nextSubscription);
+
+    if (!nextSubscription) {
+      setSubscriptionForm((current) => ({
+        ...current,
+        planName: '',
+        model: 'PayPerUse',
+        isActive: true,
+        startDate: '',
+        endDate: '',
+      }));
+      return;
+    }
+
+    setSubscriptionForm({
+      planName: nextSubscription.planName ?? '',
+      model: nextSubscription.model ?? 'PayPerUse',
+      isActive: nextSubscription.isActive ?? true,
+      startDate: toDateInputValue(nextSubscription.startDate),
+      endDate: toDateInputValue(nextSubscription.endDate),
+    });
+  };
+
+  const getSubscriptionId = (currentSubscription: Subscription | null): string => (
+    currentSubscription?.subscriptionId ?? currentSubscription?.id ?? ''
+  );
+
+  const loadSubscription = useCallback(async () => {
+    if (!tenantId) {
+      setSubscriptionError('Tenant ID was not found in the current session token.');
+      return;
+    }
+
+    setIsLoadingSubscription(true);
+    setSubscriptionError('');
+    setSubscriptionMessage('');
+
+    try {
+      const loaded = await getSubscriptionByTenant(tenantId);
+      applySubscription(loaded);
+      setSubscriptionMessage('Subscription loaded.');
+    } catch (error: any) {
+      if (String(error?.message ?? '').includes('404')) {
+        applySubscription(null);
+        setSubscriptionMessage('No subscription exists for this tenant yet.');
+      } else {
+        setSubscriptionError(error?.message || 'Unable to load subscription.');
+      }
+    } finally {
+      setIsLoadingSubscription(false);
+    }
+  }, [tenantId]);
+
+  useEffect(() => {
+    const landedOnSubscription = activeTab === 'subscription' && previousActiveTab.current !== 'subscription';
+
+    if (landedOnSubscription && tenantId && !isLoadingSubscription) {
+      loadSubscription();
+    }
+
+    previousActiveTab.current = activeTab;
+  }, [activeTab, isLoadingSubscription, loadSubscription, tenantId]);
+
+  const handleSubscriptionSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    if (!tenantId) {
+      setSubscriptionError('Tenant ID was not found in the current session token.');
+      return;
+    }
+
+    setIsSavingSubscription(true);
+    setSubscriptionError('');
+    setSubscriptionMessage('');
+
+    const payload = {
+      model: subscriptionForm.model,
+      planName: subscriptionForm.planName.trim(),
+      startDate: subscriptionForm.startDate || null,
+      endDate: subscriptionForm.endDate || null,
+    };
+
+    try {
+      if (subscription) {
+        const subscriptionId = getSubscriptionId(subscription);
+
+        if (!subscriptionId) {
+          setSubscriptionError('Subscription ID was not returned by the API, so the subscription cannot be updated.');
+          return;
+        }
+      }
+
+      const saved = subscription
+        ? await updateSubscription(tenantId, {
+            ...payload,
+            isActive: subscriptionForm.isActive,
+            subscriptionId: getSubscriptionId(subscription),
+          })
+        : await createSubscription({ tenantId, ...payload });
+
+      applySubscription(saved);
+      setSubscriptionMessage(subscription ? 'Subscription updated successfully.' : 'Subscription created successfully.');
+    } catch (error: any) {
+      setSubscriptionError(error?.message || 'Unable to save subscription.');
+    } finally {
+      setIsSavingSubscription(false);
+    }
+  };
+
+  const handleDeleteSubscription = async () => {
+    if (!tenantId || !subscription) {
+      return;
+    }
+
+    const confirmed = window.confirm('Delete this tenant subscription?');
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingSubscription(true);
+    setSubscriptionError('');
+    setSubscriptionMessage('');
+
+    try {
+      await deleteSubscription(tenantId);
+      applySubscription(null);
+      setSubscriptionMessage('Subscription deleted.');
+    } catch (error: any) {
+      setSubscriptionError(error?.message || 'Unable to delete subscription.');
+    } finally {
+      setIsDeletingSubscription(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in duration-500">
       <div>
         <h2 className="text-2xl font-bold text-slate-800">Settings</h2>
-        <p className="text-slate-500">Manage tenant preferences and team access</p>
+        <p className="text-slate-500">Manage tenant preferences, subscription, and team access</p>
       </div>
 
-      <div className="flex space-x-1 p-1 bg-slate-200/50 rounded-xl w-fit">
+      <div className="flex flex-wrap gap-1 p-1 bg-slate-200/50 rounded-xl w-fit">
         <button 
           onClick={() => setActiveTab('tenant')}
           className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -44,6 +223,15 @@ const SettingsPage: React.FC = () => {
         >
           <Building size={16} />
           <span>Tenant Configuration</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('subscription')}
+          className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+            activeTab === 'subscription' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+          }`}
+        >
+          <CreditCard size={16} />
+          <span>Subscription</span>
         </button>
         <button 
           onClick={() => setActiveTab('users')}
@@ -125,6 +313,183 @@ const SettingsPage: React.FC = () => {
               <button className="text-xs font-bold text-indigo-600 border border-indigo-100 rounded-lg px-4 py-2 hover:bg-indigo-50 transition-all">Download Audit Report</button>
             </div>
           </div>
+        </div>
+      ) : activeTab === 'subscription' ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-4 duration-300">
+          <form onSubmit={handleSubscriptionSubmit} className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-8">
+            <section className="space-y-4">
+              <div className="flex items-center justify-between gap-4">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+                  <CreditCard size={18} className="text-indigo-600" />
+                  <span>Tenant Subscription</span>
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => loadSubscription()}
+                  disabled={isLoadingSubscription || !tenantId}
+                  className="inline-flex items-center space-x-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {isLoadingSubscription ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                  <span>Load</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Plan Name</label>
+                  <input
+                    type="text"
+                    value={subscriptionForm.planName}
+                    onChange={(event) => setSubscriptionForm((current) => ({ ...current, planName: event.target.value }))}
+                    placeholder="Enterprise Trial"
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Subscription Status</label>
+                  <button
+                    type="button"
+                    onClick={() => setSubscriptionForm((current) => ({ ...current, isActive: !current.isActive }))}
+                    className={`w-full px-4 py-3 rounded-xl border text-sm font-bold transition-all flex items-center justify-between ${
+                      subscriptionForm.isActive
+                        ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                        : 'bg-slate-50 border-slate-200 text-slate-500'
+                    }`}
+                  >
+                    <span>{subscriptionForm.isActive ? 'Active' : 'Inactive'}</span>
+                    <span className={`w-10 h-5 rounded-full relative transition-colors ${
+                      subscriptionForm.isActive ? 'bg-emerald-500' : 'bg-slate-300'
+                    }`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
+                        subscriptionForm.isActive ? 'right-0.5' : 'left-0.5'
+                      }`}></span>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4 pt-8 border-t border-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+                <Calendar size={18} className="text-indigo-600" />
+                <span>Billing Model</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {subscriptionModels.map((model) => (
+                  <label
+                    key={model.value}
+                    className={`p-4 rounded-2xl border cursor-pointer transition-all ${
+                      subscriptionForm.model === model.value
+                        ? 'border-indigo-300 bg-indigo-50 ring-2 ring-indigo-100'
+                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="subscriptionModel"
+                      value={model.value}
+                      checked={subscriptionForm.model === model.value}
+                      onChange={() => setSubscriptionForm((current) => ({ ...current, model: model.value }))}
+                      className="sr-only"
+                    />
+                    <span className="block text-sm font-bold text-slate-800">{model.label}</span>
+                    <span className="block text-xs text-slate-500 mt-1">{model.description}</span>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section className="space-y-4 pt-8 border-t border-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+                <Calendar size={18} className="text-indigo-600" />
+                <span>Subscription Window</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Start Date</label>
+                  <input
+                    type="date"
+                    value={subscriptionForm.startDate}
+                    onChange={(event) => setSubscriptionForm((current) => ({ ...current, startDate: event.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">End Date</label>
+                  <input
+                    type="date"
+                    value={subscriptionForm.endDate}
+                    onChange={(event) => setSubscriptionForm((current) => ({ ...current, endDate: event.target.value }))}
+                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm"
+                  />
+                </div>
+              </div>
+            </section>
+
+            {(subscriptionError || subscriptionMessage) && (
+              <div className={`flex items-start space-x-3 rounded-2xl p-4 border ${
+                subscriptionError ? 'bg-rose-50 border-rose-100 text-rose-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700'
+              }`}>
+                {subscriptionError ? <AlertCircle size={18} className="mt-0.5" /> : <CheckCircle2 size={18} className="mt-0.5" />}
+                <p className="text-sm font-semibold">{subscriptionError || subscriptionMessage}</p>
+              </div>
+            )}
+
+            <div className="pt-2 flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
+              <button
+                type="button"
+                onClick={handleDeleteSubscription}
+                disabled={!subscription || isDeletingSubscription || isSavingSubscription}
+                className="inline-flex items-center justify-center space-x-2 px-5 py-3 border border-rose-100 text-rose-600 rounded-xl font-bold hover:bg-rose-50 transition-all disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isDeletingSubscription ? <Loader2 size={18} className="animate-spin" /> : <XCircle size={18} />}
+                <span>Delete Subscription</span>
+              </button>
+              <button
+                type="submit"
+                disabled={isSavingSubscription}
+                className="inline-flex items-center justify-center space-x-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSavingSubscription ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                <span>{subscription ? 'Update Subscription' : 'Create Subscription'}</span>
+              </button>
+            </div>
+          </form>
+
+          <aside className="space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="flex items-center justify-between mb-5">
+                <h4 className="font-bold text-slate-800">Current State</h4>
+                <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase ${
+                  subscription ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {subscription ? 'Configured' : 'Not Set'}
+                </span>
+              </div>
+              <dl className="space-y-4">
+                <div>
+                  <dt className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Model</dt>
+                  <dd className="text-sm font-semibold text-slate-700 mt-1">{subscription?.model ?? subscriptionForm.model}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Plan</dt>
+                  <dd className="text-sm font-semibold text-slate-700 mt-1">{subscription?.planName || subscriptionForm.planName || 'Unspecified'}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</dt>
+                  <dd className="text-sm font-semibold text-slate-700 mt-1">{subscriptionForm.isActive ? 'Active' : 'Inactive'}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Start</dt>
+                  <dd className="text-sm font-semibold text-slate-700 mt-1">{toDateInputValue(subscription?.startDate) || subscriptionForm.startDate || 'No start date'}</dd>
+                </div>
+                <div>
+                  <dt className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">End</dt>
+                  <dd className="text-sm font-semibold text-slate-700 mt-1">{toDateInputValue(subscription?.endDate) || subscriptionForm.endDate || 'No end date'}</dd>
+                </div>
+              </dl>
+            </div>
+          </aside>
         </div>
       ) : (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
