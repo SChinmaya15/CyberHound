@@ -181,7 +181,7 @@ export const ScanConfigurationStep: React.FC<StepProps> = ({
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Scan Mode</label>
             <div className="flex flex-wrap gap-2">
-              {['Mounted Volume', 'Removable Media', 'Local Folder'].map(mode => (
+              {['Local Folder'].map(mode => (
                 <button
                   key={mode}
                   className={`px-6 py-2 rounded-full border transition-all ${
@@ -271,7 +271,7 @@ export const ScanConfigurationStep: React.FC<StepProps> = ({
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-2">Scan Frequency</label>
         <div className="flex flex-wrap gap-2">
-          {['One-time', 'Daily', 'Weekly', 'Monthly'].map(freq => (
+          {['OnDemand'].map(freq => (
             <button
               key={freq}
               className={`px-6 py-2 rounded-full border transition-all ${
@@ -304,37 +304,6 @@ export const ScanCredentialsStep: React.FC<StepProps> = ({
       {formData.location === StorageSourceEnum.NETWORK ? (
         <>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Network Admin Username</label>
-            <input
-              type="text"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              value={formData.networkUsername}
-              onChange={e => setFormData({ ...formData, networkUsername: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Network Admin Password</label>
-            <input
-              type="password"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              value={formData.networkPassword}
-              onChange={e => setFormData({ ...formData, networkPassword: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">SSH Key (optional)</label>
-            <textarea
-              rows={4}
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              value={formData.networkSshKey}
-              onChange={e => setFormData({ ...formData, networkSshKey: e.target.value })}
-              placeholder="Paste your SSH key for remote host authentication"
-            />
-          </div>
-        </>
-      ) : formData.location === StorageSourceEnum.PHYSICAL ? (
-        <>
-          <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Local Access Username</label>
             <input
               type="text"
@@ -365,28 +334,7 @@ export const ScanCredentialsStep: React.FC<StepProps> = ({
             </select>
           </div>
         </>
-      ) : (
-        <>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Access Key / Client ID</label>
-            <input
-              type="password"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              value={formData.apiKey}
-              onChange={e => setFormData({ ...formData, apiKey: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Secret Key</label>
-            <input
-              type="password"
-              className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              value={formData.secretKey}
-              onChange={e => setFormData({ ...formData, secretKey: e.target.value })}
-            />
-          </div>
-        </>
-      )}
+      ) : "This is not applicable for this scan type."}
     </div>
   );
 };
@@ -400,7 +348,7 @@ export const ScanActionsStep: React.FC<StepProps> = ({
       <div>
         <label className="block text-sm font-semibold text-slate-700 mb-4">Actions on Threat Detection</label>
         <div className="space-y-3">
-          {['Notify only', 'Quarantine', 'Auto-resolve', 'None'].map(action => (
+          {['Notify only', 'Quarantine', 'Auto-resolve'].map(action => (
             <label key={action} className="flex items-center space-x-3 p-4 border rounded-xl cursor-pointer hover:bg-slate-50 transition-colors">
               <input
                 type="radio"

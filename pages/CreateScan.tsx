@@ -107,7 +107,7 @@ const mapActionType = (action: string): string => {
 
 const localSources = [
   { id: StorageSourceEnum.PHYSICAL, label: 'Physical' },
-  { id: StorageSourceEnum.NETWORK, label: 'Network' },
+  // { id: StorageSourceEnum.NETWORK, label: 'Network' },
 ];
 
 const cloudSources = [
@@ -137,7 +137,7 @@ const CreateScan: React.FC = () => {
     name: '',
     location: StorageSourceEnum.GOOGLE_DRIVE,
     selectedAgentIds: [] as string[],
-    extensions: '.pdf, .docx, .csv',
+    extensions: '.pdf, .docx, .csv, .txt',
     networkTargets: '10.0.0.0/24',
     networkMode: 'Active',
     networkUsername: 'admin',
@@ -334,10 +334,10 @@ const CreateScan: React.FC = () => {
       const request: CreateScanRequest = {
         scan: {
           name: formData.name,
-          status: ScanStatus.SCHEDULED,
+          status: ScanStatus.IDLE,
           agents: selectedAgents.map((agentId) => ({
             agentId,
-            status: ScanStatus.SCHEDULED,
+            status: ScanStatus.IDLE,
           })),
           scanType: getScanType(formData.location),
           source: {
@@ -400,7 +400,7 @@ const CreateScan: React.FC = () => {
     }
   };
 
-  const renderStep = () => {
+  const renderStep = () =>{
     switch (currentStep) {
       case 1:
         return (
