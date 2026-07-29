@@ -13,6 +13,7 @@ const ScansList = lazy(() => import('./pages/ScansList'));
 const Findings = lazy(() => import('./pages/Findings'));
 const ScannedFiles = lazy(() => import('./pages/ScannedFiles'));
 const SettingsPage = lazy(() => import('./pages/Settings'));
+const TenantPage = lazy(() => import('./pages/tenant'));
 
 const PageFallback: React.FC = () => (
   <div className="min-h-[60vh] flex items-center justify-center text-slate-500 text-sm">
@@ -111,7 +112,6 @@ const Login: React.FC = () => {
         </div>
 
         <div className="space-y-4 relative z-10">
-          <Button fullWidth variant="primary" size="lg" onClick={() => navigate('/dashboard')}>Enter as Guest</Button>
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-slate-100"></div>
@@ -196,6 +196,7 @@ const App: React.FC = () => {
         <Route path="/edit-scan/:id" element={<ProtectedRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="/findings" element={<ProtectedRoute><AppLayout><LazyPage><Findings /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="/scanned-files" element={<ProtectedRoute><AppLayout><LazyPage><ScannedFiles /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/tenant" element={<ProtectedRoute><AppLayout><LazyPage><TenantPage /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="/settings" element={<ProtectedRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

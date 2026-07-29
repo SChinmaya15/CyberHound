@@ -301,27 +301,27 @@ export const ScanCredentialsStep: React.FC<StepProps> = ({
           <p className="text-xs text-sky-600">Your credentials are encrypted with AES-256 before being stored in our secure vault.</p>
         </div>
       </div>
-      {formData.location === StorageSourceEnum.NETWORK ? (
+      {formData.location !== StorageSourceEnum.NETWORK && formData.location !== StorageSourceEnum.PHYSICAL ? (
         <>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Local Access Username</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Cloud Access Key</label>
             <input
               type="text"
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              value={formData.physicalUsername}
-              onChange={e => setFormData({ ...formData, physicalUsername: e.target.value })}
+              value={formData.apiKey}
+              onChange={e => setFormData({ ...formData, apiKey: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Local Access Password</label>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Cloud Secret Key</label>
             <input
-              type="password"
+              type="text"
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
-              value={formData.physicalPassword}
-              onChange={e => setFormData({ ...formData, physicalPassword: e.target.value })}
+              value={formData.secretKey}
+              onChange={e => setFormData({ ...formData, secretKey: e.target.value })}
             />
           </div>
-          <div>
+          {/* <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">Access Method</label>
             <select
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none"
@@ -332,7 +332,7 @@ export const ScanCredentialsStep: React.FC<StepProps> = ({
               <option>Removable Media</option>
               <option>Local Folder</option>
             </select>
-          </div>
+          </div> */}
         </>
       ) : "This is not applicable for this scan type."}
     </div>

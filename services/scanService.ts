@@ -54,5 +54,5 @@ export async function saveScan(request: CreateScanRequest): Promise<any> {
  * @param scanId The scan identifier to run.
  */
 export async function runScan(scanId: string): Promise<any> {
-  return post('Scan/RunScan', { scanId });
+  return get(`Scan/RunScan/${scanId}`);
 }

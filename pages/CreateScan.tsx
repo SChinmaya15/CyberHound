@@ -209,8 +209,8 @@ const CreateScan: React.FC = () => {
         extensions: '.csv, .json',
         frequency: id === '1' ? 'Weekly' : 'Daily',
         action: 'Quarantine',
-        apiKey: '••••••••••••••••',
-        secretKey: '••••••••••••••••'
+        apiKey: '',
+        secretKey: ''
       }));
       // Skip to review step if editing? Usually better to start at 1, but we'll stick to 1.
     }
@@ -286,6 +286,7 @@ const CreateScan: React.FC = () => {
   };
 
   const handleSaveConfiguration = async () => {
+    debugger;
     if (!validateAgentSelection(2)) {
       return;
     }
@@ -345,11 +346,11 @@ const CreateScan: React.FC = () => {
             path: sourcePath,
             scanMode: sourceScanMode,
             credentials: {
-              username: sourceUsername,
-              passwordEncrypted: sourcePassword,
+              username: formData.physicalUsername,
+              passwordEncrypted: formData.physicalPassword,
             },
           },
-          filters: {
+            filters: {
             extensions,
             includeSubDirectories: true,
             maxFileSizeMB: 100,

@@ -1,12 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, List, Files, ShieldAlert, Settings, LogOut, Menu, X, Bell, Search, User as UserIcon, Mail, Key } from 'lucide-react';
+import { LayoutDashboard, List, Files, ShieldAlert, Settings, Building, LogOut, Menu, X, Bell, Search, User as UserIcon, Mail, Key } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { CyberHoundMascot } from '../../constants';import { getUser } from '../../services/authService';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/scans', label: 'Scans', icon: List },
-  { to: '/scanned-files', label: 'Files', icon: Files },
+  { to: '/tenant', label: 'Tenant', icon: Building },
+  // { to: '/scanned-files', label: 'Files', icon: Files },
   { to: '/findings', label: 'Insights', icon: ShieldAlert },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];

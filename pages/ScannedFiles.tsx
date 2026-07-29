@@ -36,6 +36,21 @@ const getStorageSourceName = (source: StorageSource): string => {
   }
 };
 
+const FileStatusBadge: React.FC<{ status: string }> = ({ status }) => {
+  const isClean = status === 'Clean';
+  const styles = isClean 
+    ? 'bg-emerald-50 text-emerald-600 border-emerald-100' 
+    : 'bg-rose-50 text-rose-600 border-rose-100';
+  const Icon = isClean ? CheckCircle2 : AlertCircle;
+
+  return (
+    <div className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold uppercase tracking-wider ${styles}`}>
+      <Icon size={12} />
+      <span>{status}</span>
+    </div>
+  );
+};
+
 const ScannedFiles: React.FC = () => {
   const [files, setFiles] = useState<ScannedFile[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -302,12 +317,7 @@ const ScannedFiles: React.FC = () => {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
-                        file.status === 'Clean' ? 'bg-slate-50 text-slate-400 border-slate-100' :
-                        'bg-amber-100 text-amber-700 border-amber-200'
-                      }`}>
-                        {file.status}
-                      </span>
+                      <FileStatusBadge status={file.status} />
                     </td>
                     <td className="px-6 py-4 text-right">
                       <button className="inline-flex items-center space-x-1 text-xs font-bold text-indigo-650 hover:text-indigo-800 transition-colors ml-auto">

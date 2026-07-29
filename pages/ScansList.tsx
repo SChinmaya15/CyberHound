@@ -51,6 +51,7 @@ const ScansList: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState('All');
   const [frequencyFilter, setFrequencyFilter] = useState('All');
+  const [launchingScanId, setLaunchingScanId] = useState<string | null>(null);
   const [modalState, setModalState] = useState<{
     title: string;
     message: string;
@@ -145,6 +146,7 @@ const ScansList: React.FC = () => {
 
   const handleRunScan = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setLaunchingScanId(id);
     runScan(id)
       .then(() => {
         setModalState({
@@ -164,7 +166,13 @@ const ScansList: React.FC = () => {
           message: 'Failed to launch scan. Please check if the service is running.',
           confirmLabel: 'OK',
           variant: 'danger',
+          onConfirm: () => {
+            setModalState(null);
+          }
         });
+      })
+      .finally(() => {
+        setLaunchingScanId(null);
       });
   };
 
@@ -377,10 +385,19 @@ const ScansList: React.FC = () => {
                       <div className="flex items-center justify-end gap-2">
                         <button
                           onClick={(e) => handleRunScan(scan.id, e)}
-                          className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700 transition-all"
+                          disabled={launchingScanId !== null}
+                          className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-all ${
+                            launchingScanId !== null
+                              ? 'bg-slate-300 cursor-not-allowed opacity-60'
+                              : 'bg-emerald-600 hover:bg-emerald-700'
+                          }`}
                         >
-                          <Play size={14} />
-                          <span>Run Scan</span>
+                          {launchingScanId === scan.id ? (
+                            <RefreshCw size={14} className="animate-spin" />
+                          ) : (
+                            <Play size={14} />
+                          )}
+                          <span>{launchingScanId === scan.id ? 'Launching...' : 'Run Scan'}</span>
                         </button>
                         <button
                           onClick={(e) => handleDelete(scan.id, e)}
