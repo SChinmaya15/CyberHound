@@ -251,7 +251,7 @@ const Findings: React.FC = () => {
               link.click();
               document.body.removeChild(link);
             }}
-            className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-650 hover:text-indigo-600 hover:border-indigo-100 rounded-xl text-sm font-bold shadow-sm hover:shadow-md transition-all"
+            className="flex items-center space-x-2 px-4 py-2.5 bg-white border border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-100 rounded-xl text-sm font-bold shadow-sm hover:shadow-md transition-all"
             disabled={findings.length === 0}
           >
             <Download size={16} />
@@ -376,14 +376,14 @@ const Findings: React.FC = () => {
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse min-w-[1300px]">
             <thead>
-              <tr className="text-xs font-bold text-slate-450 uppercase tracking-wider bg-slate-50/20 border-b border-slate-100">
-                <th className="px-6 py-4 cursor-pointer hover:text-indigo-650 transition-colors" onClick={() => handleSort('filePath')}>
+              <tr className="text-xs font-bold text-slate-400 uppercase tracking-wider bg-slate-50/20 border-b border-slate-100">
+                <th className="px-6 py-4 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('filePath')}>
                   <div className="flex items-center space-x-1.5">
                     <span>File Path</span>
                     {sortBy === 'filePath' && (sortOrder === 'asc' ? '▲' : '▼')}
                   </div>
                 </th>
-                <th className="px-6 py-4 cursor-pointer hover:text-indigo-650 transition-colors" onClick={() => handleSort('entity')}>
+                <th className="px-6 py-4 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('entity')}>
                   <div className="flex items-center space-x-1.5">
                     <span>Entity Type</span>
                     {sortBy === 'entity' && (sortOrder === 'asc' ? '▲' : '▼')}
@@ -393,7 +393,7 @@ const Findings: React.FC = () => {
                 <th className="px-6 py-4">Source</th>
                 <th className="px-6 py-4">Machine Name</th>
                 <th className="px-6 py-4">Scan ID</th>
-                <th className="px-6 py-4 cursor-pointer hover:text-indigo-650 transition-colors" onClick={() => handleSort('lastUpdatedUtc')}>
+                <th className="px-6 py-4 cursor-pointer hover:text-indigo-600 transition-colors" onClick={() => handleSort('lastUpdatedUtc')}>
                   <div className="flex items-center space-x-1.5">
                     <span>Last Updated</span>
                     {sortBy === 'lastUpdatedUtc' && (sortOrder === 'asc' ? '▲' : '▼')}
@@ -434,7 +434,7 @@ const Findings: React.FC = () => {
                 <tr>
                   <td colSpan={7} className="text-center py-20 text-slate-500">
                     <div className="flex flex-col items-center justify-center space-y-4 max-w-md mx-auto">
-                      <div className="p-4 bg-slate-50 rounded-full text-slate-350">
+                      <div className="p-4 bg-slate-50 rounded-full text-slate-400">
                         <ShieldAlert size={40} className="text-slate-400" />
                       </div>
                       <div>
@@ -473,7 +473,7 @@ const Findings: React.FC = () => {
 
                       {/* Details */}
                       <td className="px-6 py-4">
-                        <span className="text-sm text-slate-650 font-medium whitespace-nowrap block" title={finding.details}>
+                        <span className="text-sm text-slate-600 font-medium whitespace-nowrap block" title={finding.details}>
                           {finding.details}
                         </span>
                       </td>

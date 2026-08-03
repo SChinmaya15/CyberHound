@@ -50,6 +50,62 @@ export interface User {
   status: 'Active' | 'Inactive';
 }
 
+export interface CreateUserRequest {
+  tenantId: string;
+  email: string;
+  userName: string;
+  lastName: string;
+  password: string;
+  firstName: string;
+}
+
+export interface CreateUserResponse {
+  id?: string;
+  tenantId?: string;
+  email?: string;
+  userName?: string;
+  firstName?: string;
+  lastName?: string;
+  role?: string;
+}
+
+export interface BackendObjectId {
+  timestamp: number;
+  machine: number;
+  pid: number;
+  increment: number;
+  creationTime: string;
+}
+
+export interface BackendUserTenant {
+  id: BackendObjectId;
+  isActive: boolean;
+  isDeleted: boolean;
+  name: string;
+  code: string;
+  email: string;
+}
+
+export interface BackendUser {
+  role: string;
+  id: BackendObjectId;
+  tenantId: BackendObjectId;
+  lastLoginAt: string;
+  email: string;
+  tenant: BackendUserTenant;
+  username: string;
+  displayName: string;
+}
+
+export interface TeamMember {
+  id: string;
+  name: string;
+  email: string;
+  username: string;
+  role: string;
+  lastLoginAt: string | null;
+}
+
 export type SubscriptionModel = 'UserBased' | 'PayPerUse' | 'PayPerScan' | 'OneTimeCharge';
 
 export interface CreateSubscriptionRequest {

@@ -24,14 +24,23 @@ import {
   getSubscriptionByTenant,
   updateSubscription,
 } from '../../services/subscriptionService';
-import { Subscription, SubscriptionModel } from '../../types';
+import { CreateUserResponse, Subscription, SubscriptionModel, TeamMember } from '../../types';
 import { getTenantIdFromToken, isSuperAdmin } from '../../services/authService';
+import { getUsers } from '../../services/userService';
+import { CreateUserModal } from './CreateUserModal';
 
-const users = [
-  { id: '1', name: 'Alex Johnson', email: 'alex.j@enterprise.com', role: 'Admin', status: 'Active' },
-  { id: '2', name: 'Sarah Chen', email: 's.chen@enterprise.com', role: 'Operator', status: 'Active' },
-  { id: '3', name: 'Michael Scott', email: 'mscott@dundermifflin.com', role: 'Viewer', status: 'Inactive' },
-];
+const formatLastLogin = (lastLoginAt: string | null): string => {
+  if (!lastLoginAt) {
+    return 'Never';
+  }
+
+  const date = new Date(lastLoginAt);
+  if (Number.isNaN(date.getTime())) {
+    return 'Never';
+  }
+
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
 
 const subscriptionModels: { value: SubscriptionModel; label: string; description: string }[] = [
   { value: 'PayPerUse', label: 'Pay per use', description: 'Meter tenant activity and bill on actual usage.' },
@@ -50,7 +59,7 @@ const toDateInputValue = (date?: string | null): string => {
 
 const SettingsPage: React.FC = () => {
   const canManageTenant = isSuperAdmin();
-  const [activeTab, setActiveTab] = useState<'tenant' | 'users' | 'subscription'>(canManageTenant ? 'tenant' : 'subscription');
+  const [activeTab, setActiveTab] = useState<'basic' | 'users' | 'email' | 'subscription'>(canManageTenant ? 'basic' : 'subscription');
   const [tenantId] = useState(getTenantIdFromToken);
   const [showSaved, setShowSaved] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -59,6 +68,10 @@ const SettingsPage: React.FC = () => {
   const [isDeletingSubscription, setIsDeletingSubscription] = useState(false);
   const [subscriptionMessage, setSubscriptionMessage] = useState('');
   const [subscriptionError, setSubscriptionError] = useState('');
+  const [users, setUsers] = useState<TeamMember[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState('');
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
   const previousActiveTab = useRef<typeof activeTab | null>(null);
   const [subscriptionForm, setSubscriptionForm] = useState({
     planName: '',
@@ -71,6 +84,26 @@ const SettingsPage: React.FC = () => {
   const handleSave = () => {
     setShowSaved(true);
     setTimeout(() => setShowSaved(false), 3000);
+  };
+
+  const loadUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    setUsersError('');
+
+    try {
+      const loaded = await getUsers();
+      setUsers(loaded);
+    } catch (error: any) {
+      setUsersError(error?.message || 'Unable to load users.');
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, []);
+
+  const handleUserCreated = (_created: CreateUserResponse) => {
+    setShowSaved(true);
+    setTimeout(() => setShowSaved(false), 3000);
+    loadUsers();
   };
 
   const applySubscription = (nextSubscription: Subscription | null) => {
@@ -129,13 +162,18 @@ const SettingsPage: React.FC = () => {
 
   useEffect(() => {
     const landedOnSubscription = activeTab === 'subscription' && previousActiveTab.current !== 'subscription';
+    const landedOnUsers = activeTab === 'users' && previousActiveTab.current !== 'users';
 
     if (landedOnSubscription && tenantId && !isLoadingSubscription) {
       loadSubscription();
     }
 
+    if (landedOnUsers && !isLoadingUsers) {
+      loadUsers();
+    }
+
     previousActiveTab.current = activeTab;
-  }, [activeTab, isLoadingSubscription, loadSubscription, tenantId]);
+  }, [activeTab, isLoadingSubscription, isLoadingUsers, loadSubscription, loadUsers, tenantId]);
 
   const handleSubscriptionSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -218,24 +256,26 @@ const SettingsPage: React.FC = () => {
       <div className="flex flex-wrap gap-1 p-1 bg-slate-200/50 rounded-xl w-fit">
         {canManageTenant && (
           <button 
-            onClick={() => setActiveTab('tenant')}
+            onClick={() => setActiveTab('basic')}
             className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-              activeTab === 'tenant' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              activeTab === 'basic' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
             }`}
           >
             <Building size={16} />
-            <span>Tenant Configuration</span>
+            <span>Basic</span>
           </button>
         )}
-        <button 
-          onClick={() => setActiveTab('subscription')}
-          className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeTab === 'subscription' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <CreditCard size={16} />
-          <span>Subscription</span>
-        </button>
+        {!canManageTenant && (
+          <button 
+            onClick={() => setActiveTab('subscription')}
+            className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'subscription' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <CreditCard size={16} />
+            <span>Subscription</span>
+          </button>
+        )}
         <button 
           onClick={() => setActiveTab('users')}
           className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -245,9 +285,20 @@ const SettingsPage: React.FC = () => {
           <Users size={16} />
           <span>User Management</span>
         </button>
+        {canManageTenant && (
+          <button 
+            onClick={() => setActiveTab('email')}
+            className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'email' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Mail size={16} />
+            <span>Email Setup</span>
+          </button>
+        )}
       </div>
 
-      {activeTab === 'tenant' && canManageTenant ? (
+      {activeTab === 'basic' && canManageTenant ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-8">
@@ -317,7 +368,7 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : activeTab === 'subscription' ? (
+      ) : activeTab === 'subscription' && !canManageTenant ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-4 duration-300">
           <form onSubmit={handleSubscriptionSubmit} className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-8">
             <section className="space-y-4">
@@ -494,63 +545,165 @@ const SettingsPage: React.FC = () => {
             </div>
           </aside>
         </div>
+      ) : activeTab === 'email' && canManageTenant ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-4 duration-300">
+          <div className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-8">
+            <section className="space-y-4">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+                <Mail size={18} className="text-indigo-600" />
+                <span>Email Setup</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">SMTP Host</label>
+                  <input type="text" placeholder="smtp.company.com" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">SMTP Port</label>
+                  <input type="number" placeholder="587" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Sender Email</label>
+                  <input type="email" placeholder="security@company.com" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Sender Name</label>
+                  <input type="text" placeholder="CyberHound Alerts" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
+                </div>
+              </div>
+            </section>
+
+            <section className="space-y-4 pt-8 border-t border-slate-50">
+              <h3 className="text-lg font-bold text-slate-800 flex items-center space-x-2">
+                <Lock size={18} className="text-indigo-600" />
+                <span>Authentication</span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Username</label>
+                  <input type="text" placeholder="smtp-user" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-slate-400 uppercase mb-2">Password</label>
+                  <input type="password" placeholder="••••••••" className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-sm" />
+                </div>
+              </div>
+            </section>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={handleSave}
+                className="flex items-center space-x-2 px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100"
+              >
+                <Save size={18} />
+                <span>Save Email Setup</span>
+              </button>
+            </div>
+          </div>
+
+          <aside className="space-y-6">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
+              <div className="w-12 h-12 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center mb-4">
+                <Mail size={24} />
+              </div>
+              <h4 className="font-bold text-slate-800">Notification Channel</h4>
+              <p className="text-xs text-slate-400 mt-1">Configure the sender used for account invites, tenant updates, and scan notifications.</p>
+            </div>
+          </aside>
+        </div>
       ) : (
         <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
           <div className="p-6 border-b border-slate-50 flex justify-between items-center">
             <h3 className="font-bold text-slate-800">Manage Team Access</h3>
-            <button className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all">
-              <Plus size={16} />
-              <span>Add Team Member</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => loadUsers()}
+                disabled={isLoadingUsers}
+                className="inline-flex items-center space-x-2 px-4 py-2 border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoadingUsers ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                <span>Refresh</span>
+              </button>
+              <button
+                onClick={() => setIsCreateUserModalOpen(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700 transition-all"
+              >
+                <Plus size={16} />
+                <span>Add Team Member</span>
+              </button>
+            </div>
           </div>
-          <table className="w-full text-left">
-            <thead>
-              <tr className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                <th className="px-8 py-4">User</th>
-                <th className="px-8 py-4">Role</th>
-                <th className="px-8 py-4">Status</th>
-                <th className="px-8 py-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {users.map(user => (
-                <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
-                  <td className="px-8 py-4">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
-                        <Users size={18} />
-                      </div>
-                      <div>
-                        <p className="text-sm font-bold text-slate-800">{user.name}</p>
-                        <p className="text-xs text-slate-400">{user.email}</p>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4">
-                    <div className="flex items-center space-x-2">
-                      <Shield size={14} className="text-indigo-500" />
-                      <span className="text-sm font-medium text-slate-600">{user.role}</span>
-                    </div>
-                  </td>
-                  <td className="px-8 py-4">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                      user.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {user.status}
-                    </span>
-                  </td>
-                  <td className="px-8 py-4 text-right space-x-2">
-                    <button className="p-2 text-slate-300 hover:text-indigo-600 transition-colors">
-                      <Mail size={18} />
-                    </button>
-                    <button className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
-                      <Trash2 size={18} />
-                    </button>
-                  </td>
+
+          {usersError && (
+            <div className="flex items-start space-x-3 bg-rose-50 border-b border-rose-100 text-rose-700 p-4">
+              <AlertCircle size={18} className="mt-0.5" />
+              <p className="text-sm font-semibold">{usersError}</p>
+            </div>
+          )}
+
+          {isLoadingUsers ? (
+            <div className="flex items-center justify-center gap-3 p-10 text-sm font-semibold text-slate-500">
+              <Loader2 size={18} className="animate-spin text-indigo-600" />
+              Loading users
+            </div>
+          ) : (
+            <table className="w-full text-left">
+              <thead>
+                <tr className="bg-slate-50/50 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <th className="px-8 py-4">User</th>
+                  <th className="px-8 py-4">Role</th>
+                  <th className="px-8 py-4">Last Login</th>
+                  <th className="px-8 py-4 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {users.map(user => (
+                  <tr key={user.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="px-8 py-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center text-slate-400">
+                          <Users size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-800">{user.name}</p>
+                          <p className="text-xs text-slate-400">{user.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4">
+                      <div className="flex items-center space-x-2">
+                        <Shield size={14} className="text-indigo-500" />
+                        <span className="text-sm font-medium text-slate-600">{user.role}</span>
+                      </div>
+                    </td>
+                    <td className="px-8 py-4">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                        user.lastLoginAt ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                      }`}>
+                        {formatLastLogin(user.lastLoginAt)}
+                      </span>
+                    </td>
+                    <td className="px-8 py-4 text-right space-x-2">
+                      <button className="p-2 text-slate-300 hover:text-indigo-600 transition-colors">
+                        <Mail size={18} />
+                      </button>
+                      <button className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
+                        <Trash2 size={18} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+                {users.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-8 py-12 text-center text-sm font-semibold text-slate-400">
+                      No users found
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          )}
         </div>
       )}
 
@@ -560,6 +713,12 @@ const SettingsPage: React.FC = () => {
           <span className="text-sm font-bold">Settings saved successfully</span>
         </div>
       )}
+
+      <CreateUserModal
+        isOpen={isCreateUserModalOpen}
+        onClose={() => setIsCreateUserModalOpen(false)}
+        onUserCreated={handleUserCreated}
+      />
     </div>
   );
 };

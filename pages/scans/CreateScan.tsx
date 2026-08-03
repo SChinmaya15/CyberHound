@@ -286,7 +286,6 @@ const CreateScan: React.FC = () => {
   };
 
   const handleSaveConfiguration = async () => {
-    debugger;
     if (!validateAgentSelection(2)) {
       return;
     }

@@ -250,7 +250,7 @@ const ScansList: React.FC = () => {
           </div>
           <button 
             onClick={fetchScans}
-            className="px-4 py-2 bg-rose-650 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-all shadow-md"
+            className="px-4 py-2 bg-rose-600 text-white text-xs font-bold rounded-xl hover:bg-rose-700 transition-all shadow-md"
           >
             Retry
           </button>
@@ -337,7 +337,7 @@ const ScansList: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="text-center py-16 text-slate-500">
                     <div className="flex flex-col items-center justify-center space-y-4 max-w-sm mx-auto">
-                      <div className="p-4 bg-slate-50 rounded-full text-slate-350">
+                      <div className="p-4 bg-slate-50 rounded-full text-slate-400">
                         <Database size={40} />
                       </div>
                       <div>

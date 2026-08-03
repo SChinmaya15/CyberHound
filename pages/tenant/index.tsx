@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Search, ChevronDown, ChevronUp, SlidersHorizontal, ShieldCheck, Plus, Loader2, AlertCircle } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, ShieldCheck, Plus, Loader2, AlertCircle, Building2, Activity, PauseCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { TenantDetails } from './TenantDetails';
@@ -7,11 +7,47 @@ import { CreateTenantModal } from './CreateTenantModal';
 import { Tenant } from './types';
 import { getTenants } from '../../services/tenantService';
 
+const AVATAR_PALETTE = [
+  'from-indigo-500 to-violet-500',
+  'from-sky-500 to-cyan-500',
+  'from-emerald-500 to-teal-500',
+  'from-amber-500 to-orange-500',
+  'from-rose-500 to-pink-500',
+];
+
+const getInitials = (name: string) => {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  return (parts[0][0] + (parts[1]?.[0] || '')).toUpperCase();
+};
+
+const getAvatarGradient = (seed: string) => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
+};
+
+const StatCard: React.FC<{ title: string; value: number; icon: any; color: string }> = ({ title, value, icon: Icon, color }) => (
+  <Card className="p-6 transition-all hover:shadow-md">
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-sm font-medium text-slate-500">{title}</p>
+        <h3 className="mt-2 text-3xl font-bold text-slate-900">{value}</h3>
+      </div>
+      <div className={`rounded-2xl p-3 text-white ${color}`}>
+        <Icon size={22} />
+      </div>
+    </div>
+  </Card>
+);
+
 export const TenantPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('All Plans');
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [actionView, setActionView] = useState<'insights' | 'settings' | 'approve'>('insights');
+  const [actionView, setActionView] = useState<'settings' | 'approve'>('settings');
   const [rows, setRows] = useState<Tenant[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
@@ -81,7 +117,7 @@ export const TenantPage: React.FC = () => {
       return;
     }
     setExpandedId(tenantId);
-    setActionView('insights');
+    setActionView('settings');
   };
 
   const handleCreateTenant = (newTenant: Tenant) => {
@@ -99,7 +135,7 @@ export const TenantPage: React.FC = () => {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Tenants</h1>
-              <p className="text-slate-500">Review tenants, approve access, and open insights or settings inline.</p>
+              <p className="text-slate-500">Review tenants, approve access, and manage settings inline.</p>
             </div>
           </div>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -130,18 +166,9 @@ export const TenantPage: React.FC = () => {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
-        <Card className="p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Total Visible Tenants</p>
-          <p className="mt-4 text-3xl font-bold text-slate-900">{visibleCount}</p>
-        </Card>
-        <Card className="p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Active Tenants</p>
-          <p className="mt-4 text-3xl font-bold text-slate-900">{activeCount}</p>
-        </Card>
-        <Card className="p-6">
-          <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-400">Inactive Tenants</p>
-          <p className="mt-4 text-3xl font-bold text-slate-900">{inactiveCount}</p>
-        </Card>
+        <StatCard title="Total Visible Tenants" value={visibleCount} icon={Building2} color="bg-indigo-600" />
+        <StatCard title="Active Tenants" value={activeCount} icon={Activity} color="bg-emerald-500" />
+        <StatCard title="Inactive Tenants" value={inactiveCount} icon={PauseCircle} color="bg-slate-400" />
       </div>
 
       <Card className="overflow-hidden">
@@ -163,19 +190,17 @@ export const TenantPage: React.FC = () => {
               <tr>
                 <th className="px-6 py-4">Tenant</th>
                 <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Plan</th>
-                <th className="px-6 py-4">Expiry Date</th>
-                <th className="px-6 py-4">Actions</th>
+                <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
               {!isLoading && filteredTenants.map((tenant) => (
                 <React.Fragment key={tenant.id}>
-                  <tr className="group hover:bg-slate-50">
+                  <tr className={`group transition-colors hover:bg-slate-50 ${expandedId === tenant.id ? 'bg-indigo-50/40' : ''}`}>
                     <td className="px-6 py-5 align-top">
                       <div className="flex items-start gap-3">
-                        <div className="mt-1 flex h-11 w-11 items-center justify-center rounded-2xl bg-slate-100 text-slate-700">
-                          <SlidersHorizontal size={18} />
+                        <div className={`mt-0.5 flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-sm font-bold text-white shadow-sm ${getAvatarGradient(tenant.name)}`}>
+                          {getInitials(tenant.name)}
                         </div>
                         <div className="min-w-0 space-y-1">
                           <div className="flex flex-wrap items-center gap-2">
@@ -193,37 +218,34 @@ export const TenantPage: React.FC = () => {
                       <p className="text-xs text-slate-400">Primary Email</p>
                     </td>
                     <td className="px-6 py-5 align-top">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-700">{tenant.plan}</span>
-                        <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] ${tenant.planStatus === 'Approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>
-                          {tenant.planStatus}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-5 align-top">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-semibold text-slate-900">{tenant.expiry}</span>
-                      </div>
-                      <span className="mt-2 inline-flex rounded-full bg-rose-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">{tenant.statusTag}</span>
-                    </td>
-                    <td className="px-6 py-5 align-top">
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-                        <label className="flex cursor-pointer items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-slate-300">
-                          <input
-                            type="checkbox"
-                            checked={tenant.isInactive}
-                            onChange={() => handleToggleInactive(tenant.id)}
-                            className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                          />
-                          Inactive
-                        </label>
+                      <div className="flex items-center justify-end gap-3">
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={!tenant.isInactive}
+                          onClick={() => handleToggleInactive(tenant.id)}
+                          title={tenant.isInactive ? 'Inactive — click to activate' : 'Active — click to deactivate'}
+                          className="inline-flex shrink-0 items-center"
+                        >
+                          <span className={`relative h-5 w-9 rounded-full transition-colors ${tenant.isInactive ? 'bg-slate-300' : 'bg-emerald-500'}`}>
+                            <span
+                              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${
+                                tenant.isInactive ? 'left-0.5' : 'left-4'
+                              }`}
+                            />
+                          </span>
+                        </button>
                         <button
                           type="button"
                           onClick={() => toggleExpand(tenant.id)}
-                          className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+                          title={expandedId === tenant.id ? 'Collapse' : 'Expand'}
+                          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition ${
+                            expandedId === tenant.id
+                              ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-200 hover:bg-indigo-700'
+                              : 'border border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50'
+                          }`}
                         >
-                          {expandedId === tenant.id ? 'Collapse' : 'Expand'}
-                          {expandedId === tenant.id ? <ChevronUp className="ml-2" size={16} /> : <ChevronDown className="ml-2" size={16} />}
+                          {expandedId === tenant.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                         </button>
                       </div>
                     </td>
@@ -231,7 +253,7 @@ export const TenantPage: React.FC = () => {
 
                   {expandedId === tenant.id && (
                     <tr>
-                      <td colSpan={5} className="bg-slate-50 px-6 py-5">
+                      <td colSpan={3} className="bg-slate-50 px-6 py-5">
                         <TenantDetails
                           tenant={tenant}
                           activeView={actionView}
@@ -244,7 +266,7 @@ export const TenantPage: React.FC = () => {
               ))}
               {!isLoading && filteredTenants.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-6 py-12 text-center text-sm font-semibold text-slate-400">
+                  <td colSpan={3} className="px-6 py-12 text-center text-sm font-semibold text-slate-400">
                     No tenants found
                   </td>
                 </tr>

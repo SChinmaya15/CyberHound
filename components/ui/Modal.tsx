@@ -27,7 +27,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex h-screen items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-md max-h-[calc(100vh-4rem)] overflow-hidden rounded-xl bg-white shadow-2xl ring-1 ring-slate-900/5">
+      <div className="w-full max-w-md max-h-[calc(100vh-4rem)] overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-900/5">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <p className="text-lg font-semibold text-slate-900">{title}</p>

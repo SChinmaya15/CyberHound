@@ -269,7 +269,7 @@ const ScannedFiles: React.FC = () => {
                 <tr>
                   <td colSpan={6} className="text-center py-16 text-slate-500">
                     <div className="flex flex-col items-center justify-center space-y-4 max-w-sm mx-auto">
-                      <div className="p-4 bg-slate-50 rounded-full text-slate-350">
+                      <div className="p-4 bg-slate-50 rounded-full text-slate-400">
                         <File size={40} />
                       </div>
                       <div>
@@ -320,7 +320,7 @@ const ScannedFiles: React.FC = () => {
                       <FileStatusBadge status={file.status} />
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="inline-flex items-center space-x-1 text-xs font-bold text-indigo-650 hover:text-indigo-800 transition-colors ml-auto">
+                      <button className="inline-flex items-center space-x-1 text-xs font-bold text-indigo-600 hover:text-indigo-800 transition-colors ml-auto">
                         <ExternalLink size={14} />
                         <span>View details</span>
                       </button>
