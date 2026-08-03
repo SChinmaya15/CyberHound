@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, List, Files, ShieldAlert, Settings, Building, LogOut, Menu, X, Bell, Search, User as UserIcon, Mail, Key } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { CyberHoundMascot } from '../../constants';import { getUser, isSuperAdmin } from '../../services/authService';
+import { CyberHoundMascot } from '../../constants';import { getUser, isPlainUser, isSuperAdmin } from '../../services/authService';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/scans', label: 'Scans', icon: List },
@@ -34,9 +34,10 @@ export const EnterpriseShell: React.FC<EnterpriseShellProps> = ({ children, onLo
   const location = useLocation();
   const user = getUser();
   const canAccessTenant = isSuperAdmin();
+  const hideSettings = isPlainUser();
   const visibleNavItems = canAccessTenant
     ? navItems.filter((item) => ['/dashboard', '/tenant', '/settings'].includes(item.to))
-    : navItems.filter((item) => item.to !== '/tenant');
+    : navItems.filter((item) => item.to !== '/tenant' && !(hideSettings && item.to === '/settings'));
   const displayName = user?.name || 'Guest User';
   const displayEmail = user?.email || 'guest@enterprise.com';
   const displayRole = user?.role || 'ADMIN';

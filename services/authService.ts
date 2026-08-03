@@ -133,6 +133,11 @@ export function isSuperAdmin(): boolean {
   return role === 'super-admin' || role === 'superadmin';
 }
 
+export function isPlainUser(): boolean {
+  const role = normalizeRole(getCurrentUserRole());
+  return role === 'user';
+}
+
 /**
  * Check whether a valid token exists in the session.
  */

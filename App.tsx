@@ -3,7 +3,7 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { CyberHoundMascot } from './constants';
 import { apiClient } from './api/client'; 
-import { getRoleFromToken, saveToken, saveUser, clearToken, isAuthenticated, restoreSession, isSuperAdmin } from './services/authService';
+import { getRoleFromToken, saveToken, saveUser, clearToken, isAuthenticated, isPlainUser, restoreSession, isSuperAdmin } from './services/authService';
 import { EnterpriseShell } from './components/layout/EnterpriseShell';
 import { Button } from './components/ui/Button';
 
@@ -40,6 +40,18 @@ const SuperAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
   if (!isSuperAdmin()) {
     return <Navigate to="/settings" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const SettingsRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (isPlainUser()) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
@@ -210,7 +222,7 @@ const App: React.FC = () => {
         <Route path="/findings" element={<ProtectedRoute><AppLayout><LazyPage><Findings /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="/scanned-files" element={<ProtectedRoute><AppLayout><LazyPage><ScannedFiles /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="/tenant" element={<SuperAdminRoute><AppLayout><LazyPage><TenantPage /></LazyPage></AppLayout></SuperAdminRoute>} />
-        <Route path="/settings" element={<ProtectedRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/settings" element={<SettingsRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></SettingsRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </HashRouter>
