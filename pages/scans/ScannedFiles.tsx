@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { StorageSource, ScannedFile, BackendFileRecord } from '../types';
 import { 
   File, 
   Database, 
@@ -10,7 +9,8 @@ import {
   CheckCircle2,
   RefreshCw
 } from 'lucide-react';
-import { getFileRecords } from '../services/scanService';
+import { getFileRecords } from '../../services/scanService';
+import { StorageSource, ScannedFile, BackendFileRecord } from '../../types';
 
 const SourceIcon: React.FC<{ source: StorageSource }> = ({ source }) => {
   switch (source) {

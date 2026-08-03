@@ -116,7 +116,7 @@ class HttpClient {
           console.warn('Unauthorized request - Token might be invalid or expired.');
           this.clearToken();
         }
-        throw new Error(responseData?.message || `HTTP Request Failed: ${response.status} ${response.statusText}`);
+        throw new Error(responseData?.message || responseData?.error || `HTTP Request Failed: ${response.status} ${response.statusText}`);
       }
 
       return responseData as T;

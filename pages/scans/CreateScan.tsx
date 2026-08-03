@@ -20,11 +20,11 @@ import {
   AlertCircle,
   Save
 } from 'lucide-react';
-import { AgentOption, CreateScanRequest, ScanStatus } from '../types';
-import { ActionType, Frequency, StorageSourceEnum } from '../enums';
-import { getAvailableAgents } from '../services/agentService';
-import { saveScan } from '../services/scanService';
-import { Modal } from '../components/ui/Modal';
+import { AgentOption, CreateScanRequest, ScanStatus } from '../../types';
+import { ActionType, Frequency, StorageSourceEnum } from '../../enums';
+import { getAvailableAgents } from '../../services/agentService';
+import { saveScan } from '../../services/scanService';
+import { Modal } from '../../components/ui/Modal';
 import {
   ScanDetailsStep,
   ScanConfigurationStep,

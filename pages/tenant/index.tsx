@@ -1,127 +1,52 @@
-import React, { useMemo, useState } from 'react';
-import { Search, ChevronDown, ChevronUp, SlidersHorizontal, ShieldCheck, Plus } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Search, ChevronDown, ChevronUp, SlidersHorizontal, ShieldCheck, Plus, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { TenantDetails } from './TenantDetails';
 import { CreateTenantModal } from './CreateTenantModal';
 import { Tenant } from './types';
-
-const TENANT_DATA: Tenant[] = [
-  {
-    id: 'tenant-1',
-    name: 'krks travels pvt ltd',
-    code: '14344621',
-    email: 'kraj3838@gmail.com',
-    plan: 'Enterprise',
-    planStatus: 'Approval pending',
-    expiry: '7/20/2026',
-    isInactive: true,
-    selected: true,
-    tenantId: '6a4bc20f8f68c47b57a34bd6',
-    statusTag: 'Expired',
-  },
-  {
-    id: 'tenant-2',
-    name: 'FASFf',
-    code: '24R2',
-    email: 'kokajab475@lovadio.com',
-    plan: 'Trial',
-    planStatus: 'Approved',
-    expiry: '7/18/2026',
-    isInactive: true,
-    selected: false,
-    tenantId: '6a48e33a8f68c47b57a33761',
-    statusTag: 'Expired',
-  },
-  {
-    id: 'tenant-3',
-    name: 'tokae',
-    code: 'BOTE',
-    email: 'xaciyp95408@lovadio.com',
-    plan: 'Enterprise',
-    planStatus: 'Approved',
-    expiry: '7/17/2026',
-    isInactive: true,
-    selected: false,
-    tenantId: '6a476ce68f68c47b57a32d0a',
-    statusTag: 'Expired',
-  },
-  {
-    id: 'tenant-4',
-    name: 'TEST',
-    code: 'XACJHB',
-    email: 'aditya.jain+22@aionos.ai',
-    plan: 'Trial',
-    planStatus: 'Approved',
-    expiry: '7/2/2026',
-    isInactive: true,
-    selected: false,
-    tenantId: '6a338d2aaccaa5fdbab95089',
-    statusTag: 'Expired',
-  },
-  {
-    id: 'tenant-5',
-    name: 'KAR',
-    code: '456',
-    email: 'karan@yopmail.com',
-    plan: 'Enterprise',
-    planStatus: 'Approved',
-    expiry: '7/1/2026',
-    isInactive: true,
-    selected: false,
-    tenantId: '6a328b1ccacaa5fdbab93c92',
-    statusTag: 'Expired',
-  },
-  {
-    id: 'tenant-6',
-    name: 'BISH',
-    code: '467',
-    email: 'bish@yopmail.com',
-    plan: 'Enterprise',
-    planStatus: 'Approved',
-    expiry: '6/26/2026',
-    isInactive: true,
-    selected: false,
-    tenantId: '6a2bdc1ec65af3f38fc4e1df',
-    statusTag: 'Expired',
-  },
-  {
-    id: 'tenant-7',
-    name: 'wewess',
-    code: 'T54RFEMM',
-    email: 'robinhooda66+133@gmail.com',
-    plan: 'Trial',
-    planStatus: 'Approved',
-    expiry: '6/25/2026',
-    isInactive: true,
-    selected: false,
-    tenantId: '6a2a703e876155cc81027b8e',
-    statusTag: 'Expired',
-  },
-  {
-    id: 'tenant-8',
-    name: 'AIONOS',
-    code: 'AIONOS2222',
-    email: 'aditya.jain+2222@aionos.ai',
-    plan: 'Trial',
-    planStatus: 'Approved',
-    expiry: '6/24/2026',
-    isInactive: true,
-    selected: false,
-    tenantId: '6a2914d7876155cc81025c3b',
-    statusTag: 'Expired',
-  },
-];
-
-const planOptions = ['All Plans', 'Enterprise', 'Trial'];
+import { getTenants } from '../../services/tenantService';
 
 export const TenantPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlan, setSelectedPlan] = useState('All Plans');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [actionView, setActionView] = useState<'insights' | 'settings' | 'approve'>('insights');
-  const [rows, setRows] = useState(TENANT_DATA);
+  const [rows, setRows] = useState<Tenant[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadTenants = async () => {
+      setIsLoading(true);
+      setError('');
+
+      try {
+        const tenants = await getTenants();
+        if (isMounted) {
+          setRows(tenants);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setRows([]);
+          setError(err?.message || 'Unable to load tenants.');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+
+    loadTenants();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredTenants = useMemo(() => {
     return rows.filter((tenant) => {
@@ -132,6 +57,11 @@ export const TenantPage: React.FC = () => {
       return matchesSearch && matchesPlan;
     });
   }, [rows, searchTerm, selectedPlan]);
+
+  const planOptions = useMemo(() => {
+    const plans = Array.from(new Set(rows.map((tenant) => tenant.plan).filter(Boolean))).sort();
+    return ['All Plans', ...plans];
+  }, [rows]);
 
   const visibleCount = filteredTenants.length;
   const activeCount = filteredTenants.filter((tenant) => !tenant.isInactive).length;
@@ -157,8 +87,6 @@ export const TenantPage: React.FC = () => {
   const handleCreateTenant = (newTenant: Tenant) => {
     setRows([...rows, newTenant]);
   };
-
-  const selectedTenant = rows.find((tenant) => tenant.id === expandedId) ?? rows[0];
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -217,6 +145,18 @@ export const TenantPage: React.FC = () => {
       </div>
 
       <Card className="overflow-hidden">
+        {isLoading && (
+          <div className="flex items-center justify-center gap-3 p-10 text-sm font-semibold text-slate-500">
+            <Loader2 size={18} className="animate-spin text-indigo-600" />
+            Loading tenants
+          </div>
+        )}
+        {!isLoading && error && (
+          <div className="flex items-start gap-3 border-b border-rose-100 bg-rose-50 p-5 text-sm font-semibold text-rose-700">
+            <AlertCircle size={18} className="mt-0.5" />
+            <span>{error}</span>
+          </div>
+        )}
         <div className="min-w-full overflow-x-auto">
           <table className="w-full border-collapse text-left text-sm">
             <thead className="bg-slate-50 text-slate-500 uppercase tracking-[0.12em] text-[11px]">
@@ -229,7 +169,7 @@ export const TenantPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredTenants.map((tenant) => (
+              {!isLoading && filteredTenants.map((tenant) => (
                 <React.Fragment key={tenant.id}>
                   <tr className="group hover:bg-slate-50">
                     <td className="px-6 py-5 align-top">
@@ -302,6 +242,13 @@ export const TenantPage: React.FC = () => {
                   )}
                 </React.Fragment>
               ))}
+              {!isLoading && filteredTenants.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-sm font-semibold text-slate-400">
+                    No tenants found
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -46,7 +46,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'Admin' | 'Operator' | 'Viewer';
+  role: 'Super-Admin' | 'Admin' | 'Operator' | 'Viewer' | string;
   status: 'Active' | 'Inactive';
 }
 

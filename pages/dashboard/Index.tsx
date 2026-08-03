@@ -14,9 +14,9 @@ import {
   Zap,
   Sparkles
 } from 'lucide-react';
-import { COLORS } from '../constants';
-import { getSecurityInsights } from '../services/geminiService';
-import { Card } from '../components/ui/Card';
+import { COLORS } from '../../constants';
+import { Card } from '../../components/ui/Card';
+import { getSecurityInsights } from '../../services/geminiService';
 
 const scanHistoryData = [
   { name: 'Mon', scans: 12, threats: 2 },

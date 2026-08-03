@@ -9,11 +9,10 @@ import {
   AlertCircle,
   RefreshCw
 } from 'lucide-react';
-import { Card } from '../components/ui/Card';
-import { Button } from '../components/ui/Button';
-import { Modal } from '../components/ui/Modal';
-import { Scan, ScanStatus, StorageSource, BackendScan } from '../types';
-import { getScanList, runScan } from '../services/scanService';
+import { Card } from '../../components/ui/Card';
+import { Button } from '../../components/ui/Button';
+import { getScanList, runScan } from '../../services/scanService';
+import { Scan, ScanStatus, StorageSource, BackendScan } from '../../types';
 
 const LOCATION_LABELS: Record<number, string> = {
   0: 'Google Drive',

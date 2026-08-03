@@ -23,9 +23,9 @@ import {
   deleteSubscription,
   getSubscriptionByTenant,
   updateSubscription,
-} from '../services/subscriptionService';
-import { getTenantIdFromToken } from '../services/authService';
-import { Subscription, SubscriptionModel } from '../types';
+} from '../../services/subscriptionService';
+import { Subscription, SubscriptionModel } from '../../types';
+import { getTenantIdFromToken, isSuperAdmin } from '../../services/authService';
 
 const users = [
   { id: '1', name: 'Alex Johnson', email: 'alex.j@enterprise.com', role: 'Admin', status: 'Active' },
@@ -49,7 +49,8 @@ const toDateInputValue = (date?: string | null): string => {
 };
 
 const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'tenant' | 'users' | 'subscription'>('tenant');
+  const canManageTenant = isSuperAdmin();
+  const [activeTab, setActiveTab] = useState<'tenant' | 'users' | 'subscription'>(canManageTenant ? 'tenant' : 'subscription');
   const [tenantId] = useState(getTenantIdFromToken);
   const [showSaved, setShowSaved] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -215,15 +216,17 @@ const SettingsPage: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap gap-1 p-1 bg-slate-200/50 rounded-xl w-fit">
-        <button 
-          onClick={() => setActiveTab('tenant')}
-          className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
-            activeTab === 'tenant' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-          }`}
-        >
-          <Building size={16} />
-          <span>Tenant Configuration</span>
-        </button>
+        {canManageTenant && (
+          <button 
+            onClick={() => setActiveTab('tenant')}
+            className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
+              activeTab === 'tenant' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <Building size={16} />
+            <span>Tenant Configuration</span>
+          </button>
+        )}
         <button 
           onClick={() => setActiveTab('subscription')}
           className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
@@ -244,7 +247,7 @@ const SettingsPage: React.FC = () => {
         </button>
       </div>
 
-      {activeTab === 'tenant' ? (
+      {activeTab === 'tenant' && canManageTenant ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-8">

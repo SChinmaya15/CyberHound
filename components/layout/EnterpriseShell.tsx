@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LayoutDashboard, List, Files, ShieldAlert, Settings, Building, LogOut, Menu, X, Bell, Search, User as UserIcon, Mail, Key } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { CyberHoundMascot } from '../../constants';import { getUser } from '../../services/authService';
+import { CyberHoundMascot } from '../../constants';import { getUser, isSuperAdmin } from '../../services/authService';
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { to: '/scans', label: 'Scans', icon: List },
-  { to: '/tenant', label: 'Tenant', icon: Building },
+  { to: '/tenant', label: 'Tenants', icon: Building },
   // { to: '/scanned-files', label: 'Files', icon: Files },
   { to: '/findings', label: 'Insights', icon: ShieldAlert },
   { to: '/settings', label: 'Settings', icon: Settings },
@@ -33,6 +33,10 @@ export const EnterpriseShell: React.FC<EnterpriseShellProps> = ({ children, onLo
   const profileRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const user = getUser();
+  const canAccessTenant = isSuperAdmin();
+  const visibleNavItems = canAccessTenant
+    ? navItems.filter((item) => ['/dashboard', '/tenant', '/settings'].includes(item.to))
+    : navItems.filter((item) => item.to !== '/tenant');
   const displayName = user?.name || 'Guest User';
   const displayEmail = user?.email || 'guest@enterprise.com';
   const displayRole = user?.role || 'ADMIN';
@@ -68,7 +72,7 @@ export const EnterpriseShell: React.FC<EnterpriseShellProps> = ({ children, onLo
           </div>
 
           <nav className="space-y-2">
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <SidebarItem
                 key={item.to}
                 to={item.to}

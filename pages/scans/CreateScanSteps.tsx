@@ -3,8 +3,8 @@ import {
   Lock,
   AlertCircle,
 } from 'lucide-react';
-import { StorageSourceEnum } from '../enums';
-import { AgentOption } from '../types';
+import { AgentOption } from '../../types';
+import { StorageSourceEnum } from '../../enums';
 
 interface FormData {
   name: string;

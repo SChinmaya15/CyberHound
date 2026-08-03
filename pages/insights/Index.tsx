@@ -23,7 +23,7 @@ import {
   Check,
   Info
 } from 'lucide-react';
-import { get } from '../services/authService';
+import { get } from '../../services/authService';
 
 interface FindingRecord {
   id: string;

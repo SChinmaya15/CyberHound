@@ -57,27 +57,80 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
   }
 }
 
-export function getTenantIdFromToken(): string {
-  const token = getToken();
-  if (!token || typeof window === 'undefined') {
-    return DEFAULT_TENANT_ID;
+function getStringClaim(payload: Record<string, unknown>, claimNames: string[]): string {
+  for (const claimName of claimNames) {
+    const claimValue = payload[claimName];
+
+    if (typeof claimValue === 'string' && claimValue) {
+      return claimValue;
+    }
+
+    if (Array.isArray(claimValue)) {
+      const stringValue = claimValue.find((value): value is string => typeof value === 'string' && !!value);
+      if (stringValue) {
+        return stringValue;
+      }
+    }
   }
 
-  const payload = decodeJwtPayload(token);
+  return '';
+}
+
+export function getTokenPayload(): Record<string, unknown> | null {
+  const token = getToken();
+  if (!token || typeof window === 'undefined') {
+    return null;
+  }
+
+  return decodeJwtPayload(token);
+}
+
+export function getTenantIdFromToken(): string {
+  const payload = getTokenPayload();
   if (!payload) {
     return DEFAULT_TENANT_ID;
   }
 
-  const tenantId =
-    payload.tenantId ??
-    payload.TenantId ??
-    payload.tenant_id ??
-    payload.tid ??
-    payload['http://schemas.microsoft.com/identity/claims/tenantid'] ??
-    payload['http://schemas.microsoft.com/ws/2008/06/identity/claims/tenantid'] ??
-    payload['http://schemas.pii-scanner.com/claims/tenantid'];
+  const tenantId = getStringClaim(payload, [
+    'tenantId',
+    'TenantId',
+    'tenant_id',
+    'tid',
+    'http://schemas.microsoft.com/identity/claims/tenantid',
+    'http://schemas.microsoft.com/ws/2008/06/identity/claims/tenantid',
+    'http://schemas.pii-scanner.com/claims/tenantid',
+  ]);
 
-  return typeof tenantId === 'string' && tenantId ? tenantId : DEFAULT_TENANT_ID;
+  return tenantId || DEFAULT_TENANT_ID;
+}
+
+export function getRoleFromToken(): string {
+  const payload = getTokenPayload();
+  if (!payload) {
+    return '';
+  }
+
+  return getStringClaim(payload, [
+    'role',
+    'Role',
+    'roles',
+    'Roles',
+    'http://schemas.microsoft.com/ws/2008/06/identity/claims/role',
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/role',
+  ]);
+}
+
+export function normalizeRole(role?: string | null): string {
+  return (role ?? '').trim().toLowerCase().replace(/[\s_]+/g, '-');
+}
+
+export function getCurrentUserRole(): string {
+  return getUser()?.role || getRoleFromToken();
+}
+
+export function isSuperAdmin(): boolean {
+  const role = normalizeRole(getCurrentUserRole());
+  return role === 'super-admin' || role === 'superadmin';
 }
 
 /**
@@ -149,7 +202,7 @@ export function clearUser(): void {
  * 
  * @example
  * await post('scans/CreateScan', scanRequest);
- * await post('Users/login', { username, password });
+ * await post('auth/login', { username, password });
  */
 export async function post<T = any>(path: string, data?: any): Promise<T> {
   return apiClient.post<T>(path, data);

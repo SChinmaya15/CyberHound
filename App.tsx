@@ -3,21 +3,21 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { CyberHoundMascot } from './constants';
 import { apiClient } from './api/client'; 
-import { saveToken, saveUser, clearToken, isAuthenticated, restoreSession } from './services/authService';
+import { getRoleFromToken, saveToken, saveUser, clearToken, isAuthenticated, restoreSession, isSuperAdmin } from './services/authService';
 import { EnterpriseShell } from './components/layout/EnterpriseShell';
 import { Button } from './components/ui/Button';
 
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const CreateScan = lazy(() => import('./pages/CreateScan'));
-const ScansList = lazy(() => import('./pages/ScansList'));
-const Findings = lazy(() => import('./pages/Findings'));
-const ScannedFiles = lazy(() => import('./pages/ScannedFiles'));
-const SettingsPage = lazy(() => import('./pages/Settings'));
+const ScansList = lazy(() => import('./pages/scans'));
+const Findings = lazy(() => import('./pages/insights'));
 const TenantPage = lazy(() => import('./pages/tenant'));
+const Dashboard = lazy(() => import('./pages/dashboard'));
+const SettingsPage = lazy(() => import('./pages/settings'));
+const CreateScan = lazy(() => import('./pages/scans/CreateScan'));
+const ScannedFiles = lazy(() => import('./pages/scans/ScannedFiles'));
 
 const PageFallback: React.FC = () => (
   <div className="min-h-[60vh] flex items-center justify-center text-slate-500 text-sm">
-    Loading application…
+    Loading Application…
   </div>
 );
 
@@ -28,6 +28,18 @@ const LazyPage: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!isAuthenticated()) {
     return <Navigate to="/" replace />;
+  }
+
+  return <>{children}</>;
+};
+
+const SuperAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (!isSuperAdmin()) {
+    return <Navigate to="/settings" replace />;
   }
 
   return <>{children}</>;
@@ -63,23 +75,24 @@ const Login: React.FC = () => {
     
     try {
       // Request for token using the API client
-      const response = await apiClient.post('Users/login', {
+      const response = await apiClient.post('auth/login', {
+        email: username,
         username,
         password
       });
       
       // Extract the token appropriately based on expected backend response type.
-      const token = response?.token || response?.accessToken || (typeof response === 'string' ? response : null);
+      const token = response?.token || response?.accessToken || response?.data?.token || response?.data?.accessToken || (typeof response === 'string' ? response : null);
       
       if (token) {
         // Save the token to session storage and sync with apiClient
         saveToken(token);
 
-        const userProfile = response?.user || {
+        const userProfile = response?.user || response?.data?.user || {
           id: 'guest',
           name: username,
           email: username.includes('@') ? username : `${username}@enterprise.com`,
-          role: 'Admin',
+          role: getRoleFromToken() || 'Admin',
           status: 'Active'
         };
 
@@ -196,7 +209,7 @@ const App: React.FC = () => {
         <Route path="/edit-scan/:id" element={<ProtectedRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="/findings" element={<ProtectedRoute><AppLayout><LazyPage><Findings /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="/scanned-files" element={<ProtectedRoute><AppLayout><LazyPage><ScannedFiles /></LazyPage></AppLayout></ProtectedRoute>} />
-        <Route path="/tenant" element={<ProtectedRoute><AppLayout><LazyPage><TenantPage /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/tenant" element={<SuperAdminRoute><AppLayout><LazyPage><TenantPage /></LazyPage></AppLayout></SuperAdminRoute>} />
         <Route path="/settings" element={<ProtectedRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></ProtectedRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
