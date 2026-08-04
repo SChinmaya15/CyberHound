@@ -1,25 +1,77 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, List, Files, ShieldAlert, Settings, Building, LogOut, Menu, X, Bell, Search, User as UserIcon, Mail, Key } from 'lucide-react';
+import {
+  LayoutDashboard,
+  List,
+  Files,
+  ShieldAlert,
+  Settings,
+  Building,
+  LogOut,
+  Menu,
+  X,
+  Bell,
+  Search,
+  User as UserIcon,
+  Mail,
+  Key,
+  Home,
+  BarChart2,
+  Circle,
+} from 'lucide-react';
 import { Button } from '../ui/Button';
-import { CyberHoundMascot } from '../../constants';import { getUser, isPlainUser, isSuperAdmin } from '../../services/authService';
-const navItems = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/scans', label: 'Scans', icon: List },
-  { to: '/tenant', label: 'Tenants', icon: Building },
-  // { to: '/scanned-files', label: 'Files', icon: Files },
-  { to: '/findings', label: 'Insights', icon: ShieldAlert },
-  { to: '/settings', label: 'Settings', icon: Settings },
+import { CyberHoundMascot } from '../../constants';
+import { getUser, getUserIdFromToken, isSuperAdmin, isTenantAdmin } from '../../services/authService';
+import { getNavigationMenu, normalizePath } from '../../services/navigationService';
+import { NavItem } from '../../types';
+
+// Maps the backend's iconKey string to an actual icon component. Falls back
+// to a generic icon for any key the backend sends that isn't listed here.
+const ICON_MAP: Record<string, React.ElementType> = {
+  Home,
+  Search,
+  BarChart2,
+  Settings,
+  Building,
+  List,
+  ShieldAlert,
+  LayoutDashboard,
+  Files,
+  Mail,
+};
+
+// Used only if the navigation API is unavailable, so the sidebar isn't left
+// empty. Mirrors the same role rules the backend is expected to apply.
+const FALLBACK_NAV_ITEMS: NavItem[] = [
+  { id: 'fallback-dashboard', orderIndex: 1, name: 'Dashboard', path: '/dashboard', iconKey: 'Home', description: '' },
+  { id: 'fallback-scans', orderIndex: 2, name: 'Scans', path: '/scans', iconKey: 'Search', description: '' },
+  { id: 'fallback-tenant', orderIndex: 3, name: 'Tenants', path: '/tenants', iconKey: 'Building', description: '' },
+  { id: 'fallback-insights', orderIndex: 4, name: 'Insights', path: '/findings', iconKey: 'BarChart2', description: '' },
+  { id: 'fallback-settings', orderIndex: 5, name: 'Settings', path: '/settings', iconKey: 'Settings', description: '' },
 ];
+
+const getFallbackNavItems = (): NavItem[] => {
+  if (isSuperAdmin()) {
+    return FALLBACK_NAV_ITEMS.filter((item) => item.path === '/tenants' || item.path === '/settings');
+  }
+
+  const canViewSettings = isTenantAdmin();
+  return FALLBACK_NAV_ITEMS.filter((item) => {
+    if (item.path === '/tenants') return false;
+    if (item.path === '/settings') return canViewSettings;
+    return true;
+  });
+};
 
 interface EnterpriseShellProps {
   children: React.ReactNode;
   onLogout: () => void;
 }
 
-const SidebarItem: React.FC<{ to: string; label: string; icon: React.ElementType; active: boolean }> = ({ to, icon: Icon, label, active }) => (
+const SidebarItem: React.FC<{ to: string; label: string; icon: React.ElementType; active: boolean; title?: string }> = ({ to, icon: Icon, label, active, title }) => (
   <Link
     to={to}
+    title={title || undefined}
     className={`group flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-200 ${active ? 'bg-slate-900 text-white shadow-lg shadow-slate-200/10' : 'text-slate-500 hover:bg-slate-100 hover:text-slate-900'}`}
   >
     <Icon size={18} className="transition-colors" />
@@ -30,17 +82,14 @@ const SidebarItem: React.FC<{ to: string; label: string; icon: React.ElementType
 export const EnterpriseShell: React.FC<EnterpriseShellProps> = ({ children, onLogout }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [navItems, setNavItems] = useState<NavItem[]>([]);
+  const [isLoadingNav, setIsLoadingNav] = useState(true);
   const profileRef = useRef<HTMLDivElement | null>(null);
   const location = useLocation();
   const user = getUser();
-  const canAccessTenant = isSuperAdmin();
-  const hideSettings = isPlainUser();
-  const visibleNavItems = canAccessTenant
-    ? navItems.filter((item) => ['/tenant', '/settings'].includes(item.to))
-    : navItems.filter((item) => item.to !== '/tenant' && !(hideSettings && item.to === '/settings'));
   const displayName = user?.name || 'Guest User';
-  const displayEmail = user?.email || 'guest@enterprise.com';
-  const displayRole = user?.role || 'ADMIN';
+  const displayEmail = user?.email || 'guest@f-tech.in';
+  const displayRole = user?.role || 'User';
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -51,6 +100,39 @@ export const EnterpriseShell: React.FC<EnterpriseShellProps> = ({ children, onLo
 
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const userId = getUserIdFromToken();
+    if (!userId) {
+      setNavItems(getFallbackNavItems());
+      setIsLoadingNav(false);
+      return;
+    }
+
+    getNavigationMenu(userId)
+      .then((items) => {
+        if (isMounted) {
+          setNavItems(items.length > 0 ? items : getFallbackNavItems());
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load navigation menu:', error);
+        if (isMounted) {
+          setNavItems(getFallbackNavItems());
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingNav(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   return (
@@ -73,15 +155,25 @@ export const EnterpriseShell: React.FC<EnterpriseShellProps> = ({ children, onLo
           </div>
 
           <nav className="space-y-2">
-            {visibleNavItems.map((item) => (
-              <SidebarItem
-                key={item.to}
-                to={item.to}
-                icon={item.icon}
-                label={item.label}
-                active={location.pathname === item.to}
-              />
-            ))}
+            {isLoadingNav ? (
+              Array.from({ length: 4 }).map((_, index) => (
+                <div key={index} className="h-11 animate-pulse rounded-2xl bg-slate-100" />
+              ))
+            ) : (
+              navItems.map((item) => {
+                const to = normalizePath(item.path);
+                return (
+                  <SidebarItem
+                    key={item.id}
+                    to={to}
+                    icon={ICON_MAP[item.iconKey] || Circle}
+                    label={item.name}
+                    title={item.description}
+                    active={location.pathname === to}
+                  />
+                );
+              })
+            )}
           </nav>
 
           <div className="mt-auto pt-6 border-t border-slate-200">

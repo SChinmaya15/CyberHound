@@ -80,6 +80,24 @@ export interface BackendObjectId {
   creationTime: string;
 }
 
+export interface BackendNavItem {
+  id: BackendObjectId;
+  orderIndex: number;
+  name: string;
+  path: string;
+  iconKey: string;
+  description: string;
+}
+
+export interface NavItem {
+  id: string;
+  orderIndex: number;
+  name: string;
+  path: string;
+  iconKey: string;
+  description: string;
+}
+
 export interface BackendUserTenant {
   id: BackendObjectId;
   isActive: boolean;

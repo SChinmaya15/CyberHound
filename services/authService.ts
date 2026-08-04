@@ -104,6 +104,24 @@ export function getTenantIdFromToken(): string {
   return tenantId || DEFAULT_TENANT_ID;
 }
 
+export function getUserIdFromToken(): string {
+  const payload = getTokenPayload();
+  if (!payload) {
+    return '';
+  }
+
+  return getStringClaim(payload, [
+    'sub',
+    'id',
+    'userId',
+    'UserId',
+    'user_id',
+    'nameid',
+    'http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier',
+    'http://schemas.microsoft.com/ws/2008/06/identity/claims/nameidentifier',
+  ]);
+}
+
 export function getRoleFromToken(): string {
   const payload = getTokenPayload();
   if (!payload) {
@@ -136,6 +154,11 @@ export function isSuperAdmin(): boolean {
 export function isPlainUser(): boolean {
   const role = normalizeRole(getCurrentUserRole());
   return role === 'user';
+}
+
+export function isTenantAdmin(): boolean {
+  const role = normalizeRole(getCurrentUserRole());
+  return role === 'admin';
 }
 
 /**

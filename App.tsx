@@ -3,13 +3,13 @@ import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { HashRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { CyberHoundMascot } from './constants';
 import { apiClient } from './api/client'; 
-import { getRoleFromToken, saveToken, saveUser, clearToken, isAuthenticated, isPlainUser, restoreSession, isSuperAdmin } from './services/authService';
+import { getRoleFromToken, saveToken, saveUser, clearToken, isAuthenticated, isTenantAdmin, restoreSession, isSuperAdmin } from './services/authService';
 import { EnterpriseShell } from './components/layout/EnterpriseShell';
 import { Button } from './components/ui/Button';
 
 const ScansList = lazy(() => import('./pages/scans'));
 const Findings = lazy(() => import('./pages/insights'));
-const TenantPage = lazy(() => import('./pages/tenant'));
+const TenantPage = lazy(() => import('./pages/tenants'));
 const Dashboard = lazy(() => import('./pages/dashboard'));
 const SettingsPage = lazy(() => import('./pages/settings'));
 const CreateScan = lazy(() => import('./pages/scans/CreateScan'));
@@ -50,7 +50,7 @@ const SettingsRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
     return <Navigate to="/" replace />;
   }
 
-  if (isPlainUser()) {
+  if (!isSuperAdmin() && !isTenantAdmin()) {
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -63,7 +63,7 @@ const NonSuperAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children 
   }
 
   if (isSuperAdmin()) {
-    return <Navigate to="/tenant" replace />;
+    return <Navigate to="/tenants" replace />;
   }
 
   return <>{children}</>;
@@ -121,7 +121,7 @@ const Login: React.FC = () => {
         };
 
         saveUser(userProfile);
-        navigate(isSuperAdmin() ? '/tenant' : '/dashboard');
+        navigate(isSuperAdmin() ? '/tenants' : '/dashboard');
       } else {
         setError('Login failed: Token missing from response.');
         console.warn('Login returned successfully, but no token was found in the response body:', response);
@@ -233,7 +233,7 @@ const App: React.FC = () => {
         <Route path="/edit-scan/:id" element={<NonSuperAdminRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></NonSuperAdminRoute>} />
         <Route path="/findings" element={<NonSuperAdminRoute><AppLayout><LazyPage><Findings /></LazyPage></AppLayout></NonSuperAdminRoute>} />
         <Route path="/scanned-files" element={<NonSuperAdminRoute><AppLayout><LazyPage><ScannedFiles /></LazyPage></AppLayout></NonSuperAdminRoute>} />
-        <Route path="/tenant" element={<SuperAdminRoute><AppLayout><LazyPage><TenantPage /></LazyPage></AppLayout></SuperAdminRoute>} />
+        <Route path="/tenants" element={<SuperAdminRoute><AppLayout><LazyPage><TenantPage /></LazyPage></AppLayout></SuperAdminRoute>} />
         <Route path="/settings" element={<SettingsRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></SettingsRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -1,6 +1,6 @@
 import { get } from './authService';
 import { toObjectIdHex } from './objectId';
-import { Tenant } from '../pages/tenant/types';
+import { Tenant } from '../pages/tenants/types';
 
 type RawTenant = Record<string, any>;
 

@@ -25,7 +25,7 @@ import {
   updateSubscription,
 } from '../../services/subscriptionService';
 import { CreateUserResponse, Subscription, SubscriptionModel, TeamMember } from '../../types';
-import { getTenantIdFromToken, isSuperAdmin } from '../../services/authService';
+import { getTenantIdFromToken, isSuperAdmin, isTenantAdmin } from '../../services/authService';
 import { getUsers } from '../../services/userService';
 import { CreateUserModal } from '../../components/users/CreateUserModal';
 
@@ -59,7 +59,10 @@ const toDateInputValue = (date?: string | null): string => {
 
 const SettingsPage: React.FC = () => {
   const canManageTenant = isSuperAdmin();
-  const [activeTab, setActiveTab] = useState<'basic' | 'users' | 'email' | 'subscription'>(canManageTenant ? 'basic' : 'subscription');
+  const isAdminRole = isTenantAdmin();
+  const canViewBasic = canManageTenant || isAdminRole;
+  const canViewSubscription = !canManageTenant && !isAdminRole;
+  const [activeTab, setActiveTab] = useState<'basic' | 'users' | 'email' | 'subscription'>(canViewBasic ? 'basic' : 'subscription');
   const [tenantId] = useState(getTenantIdFromToken);
   const [showSaved, setShowSaved] = useState(false);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -254,8 +257,8 @@ const SettingsPage: React.FC = () => {
       </div>
 
       <div className="flex flex-wrap gap-1 p-1 bg-slate-200/50 rounded-xl w-fit">
-        {canManageTenant && (
-          <button 
+        {canViewBasic && (
+          <button
             onClick={() => setActiveTab('basic')}
             className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
               activeTab === 'basic' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
@@ -265,8 +268,8 @@ const SettingsPage: React.FC = () => {
             <span>Basic</span>
           </button>
         )}
-        {!canManageTenant && (
-          <button 
+        {canViewSubscription && (
+          <button
             onClick={() => setActiveTab('subscription')}
             className={`flex items-center space-x-2 px-6 py-2 rounded-lg text-sm font-bold transition-all ${
               activeTab === 'subscription' ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'
@@ -298,7 +301,7 @@ const SettingsPage: React.FC = () => {
         )}
       </div>
 
-      {activeTab === 'basic' && canManageTenant ? (
+      {activeTab === 'basic' && canViewBasic ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
             <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-8">
@@ -368,7 +371,7 @@ const SettingsPage: React.FC = () => {
             </div>
           </div>
         </div>
-      ) : activeTab === 'subscription' && !canManageTenant ? (
+      ) : activeTab === 'subscription' && canViewSubscription ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 animate-in slide-in-from-bottom-4 duration-300">
           <form onSubmit={handleSubscriptionSubmit} className="lg:col-span-2 bg-white p-8 rounded-3xl border border-slate-100 shadow-sm space-y-8">
             <section className="space-y-4">
