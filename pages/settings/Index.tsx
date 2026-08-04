@@ -27,7 +27,7 @@ import {
 import { CreateUserResponse, Subscription, SubscriptionModel, TeamMember } from '../../types';
 import { getTenantIdFromToken, isSuperAdmin } from '../../services/authService';
 import { getUsers } from '../../services/userService';
-import { CreateUserModal } from './CreateUserModal';
+import { CreateUserModal } from '../../components/users/CreateUserModal';
 
 const formatLastLogin = (lastLoginAt: string | null): string => {
   if (!lastLoginAt) {

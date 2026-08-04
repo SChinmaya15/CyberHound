@@ -10,6 +10,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { getFileRecords } from '../../services/scanService';
+import { toObjectIdHex } from '../../services/objectId';
 import { StorageSource, ScannedFile, BackendFileRecord } from '../../types';
 
 const SourceIcon: React.FC<{ source: StorageSource }> = ({ source }) => {
@@ -53,16 +54,16 @@ const FileStatusBadge: React.FC<{ status: string }> = ({ status }) => {
 
 const ScannedFiles: React.FC = () => {
   const [files, setFiles] = useState<ScannedFile[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [searchText, setSearchText] = useState<string>('');
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedSource, setSelectedSource] = useState<string>('All Sources');
   const [selectedStatus, setSelectedStatus] = useState<string>('All Statuses');
 
   // Map backend file record model to frontend representation
   const mapBackendFileRecordToScannedFile = (bRecord: BackendFileRecord): ScannedFile => {
     const idStr = bRecord.id && typeof bRecord.id === 'object'
-      ? `${bRecord.id.timestamp}-${bRecord.id.machine}-${bRecord.id.pid}-${bRecord.id.increment}`
+      ? toObjectIdHex(bRecord.id)
       : (typeof bRecord.id === 'string' ? bRecord.id : Math.random().toString());
 
     // Map source using path prefix or source property

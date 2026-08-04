@@ -57,6 +57,18 @@ const SettingsRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
   return <>{children}</>;
 };
 
+const NonSuperAdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  if (!isAuthenticated()) {
+    return <Navigate to="/" replace />;
+  }
+
+  if (isSuperAdmin()) {
+    return <Navigate to="/tenant" replace />;
+  }
+
+  return <>{children}</>;
+};
+
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const navigate = useNavigate();
 
@@ -109,7 +121,7 @@ const Login: React.FC = () => {
         };
 
         saveUser(userProfile);
-        navigate('/dashboard');
+        navigate(isSuperAdmin() ? '/tenant' : '/dashboard');
       } else {
         setError('Login failed: Token missing from response.');
         console.warn('Login returned successfully, but no token was found in the response body:', response);
@@ -215,12 +227,12 @@ const App: React.FC = () => {
     <HashRouter>
       <Routes>
         <Route path="/" element={<Login />} />
-        <Route path="/dashboard" element={<ProtectedRoute><AppLayout><LazyPage><Dashboard /></LazyPage></AppLayout></ProtectedRoute>} />
-        <Route path="/scans" element={<ProtectedRoute><AppLayout><LazyPage><ScansList /></LazyPage></AppLayout></ProtectedRoute>} />
-        <Route path="/create-scan" element={<ProtectedRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></ProtectedRoute>} />
-        <Route path="/edit-scan/:id" element={<ProtectedRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></ProtectedRoute>} />
-        <Route path="/findings" element={<ProtectedRoute><AppLayout><LazyPage><Findings /></LazyPage></AppLayout></ProtectedRoute>} />
-        <Route path="/scanned-files" element={<ProtectedRoute><AppLayout><LazyPage><ScannedFiles /></LazyPage></AppLayout></ProtectedRoute>} />
+        <Route path="/dashboard" element={<NonSuperAdminRoute><AppLayout><LazyPage><Dashboard /></LazyPage></AppLayout></NonSuperAdminRoute>} />
+        <Route path="/scans" element={<NonSuperAdminRoute><AppLayout><LazyPage><ScansList /></LazyPage></AppLayout></NonSuperAdminRoute>} />
+        <Route path="/create-scan" element={<NonSuperAdminRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></NonSuperAdminRoute>} />
+        <Route path="/edit-scan/:id" element={<NonSuperAdminRoute><AppLayout><LazyPage><CreateScan /></LazyPage></AppLayout></NonSuperAdminRoute>} />
+        <Route path="/findings" element={<NonSuperAdminRoute><AppLayout><LazyPage><Findings /></LazyPage></AppLayout></NonSuperAdminRoute>} />
+        <Route path="/scanned-files" element={<NonSuperAdminRoute><AppLayout><LazyPage><ScannedFiles /></LazyPage></AppLayout></NonSuperAdminRoute>} />
         <Route path="/tenant" element={<SuperAdminRoute><AppLayout><LazyPage><TenantPage /></LazyPage></AppLayout></SuperAdminRoute>} />
         <Route path="/settings" element={<SettingsRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></SettingsRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -46,9 +46,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'Super-Admin' | 'Admin' | 'Operator' | 'Viewer' | string;
+  role: 'Admin' | 'Agent' | 'Manager' | 'SuperAdmin' | string;
   status: 'Active' | 'Inactive';
 }
+
+export type UserRole = 'User' | 'Admin' | 'Agent' | 'Manager' | 'SuperAdmin';
 
 export interface CreateUserRequest {
   tenantId: string;
@@ -57,6 +59,7 @@ export interface CreateUserRequest {
   lastName: string;
   password: string;
   firstName: string;
+  role: UserRole;
 }
 
 export interface CreateUserResponse {
@@ -99,6 +102,7 @@ export interface BackendUser {
 
 export interface TeamMember {
   id: string;
+  tenantId: string;
   name: string;
   email: string;
   username: string;

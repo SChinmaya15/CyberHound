@@ -1,4 +1,5 @@
 import { get, post } from './authService';
+import { toObjectIdHex } from './objectId';
 import { BackendUser, CreateUserRequest, CreateUserResponse, TeamMember } from '../types';
 
 const EMPTY_DATE_PREFIX = '0001-01-01';
@@ -12,12 +13,7 @@ const humanizeRole = (role: string): string => {
 };
 
 const getUserId = (user: BackendUser, index: number): string => {
-  const objectId = user.id;
-  if (objectId?.creationTime || objectId?.increment) {
-    return [objectId.creationTime, objectId.increment].filter(Boolean).join('-');
-  }
-
-  return `user-${index + 1}`;
+  return toObjectIdHex(user.id) || `user-${index + 1}`;
 };
 
 const mapUser = (user: BackendUser, index: number): TeamMember => {
@@ -29,6 +25,7 @@ const mapUser = (user: BackendUser, index: number): TeamMember => {
 
   return {
     id: getUserId(user, index),
+    tenantId: toObjectIdHex(user.tenantId),
     name: displayName || username || user.email || 'Unknown User',
     email: user.email ?? '',
     username,

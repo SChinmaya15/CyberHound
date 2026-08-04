@@ -1,25 +1,23 @@
 import { get } from './authService';
+import { toObjectIdHex } from './objectId';
 import { Tenant } from '../pages/tenant/types';
 
 type RawTenant = Record<string, any>;
 
 const getTenantId = (tenant: RawTenant, index: number): string => {
+  if (tenant.id && typeof tenant.id === 'object') {
+    const hex = toObjectIdHex(tenant.id);
+    if (hex) {
+      return hex;
+    }
+  }
+
   if (typeof tenant.id === 'string' && tenant.id) {
     return tenant.id;
   }
 
   if (typeof tenant.tenantId === 'string' && tenant.tenantId) {
     return tenant.tenantId;
-  }
-
-  if (tenant.id && typeof tenant.id === 'object') {
-    const objectId = tenant.id as Record<string, unknown>;
-    const creationTime = typeof objectId.creationTime === 'string' ? objectId.creationTime : '';
-    const increment = typeof objectId.increment === 'number' || typeof objectId.increment === 'string' ? String(objectId.increment) : '';
-
-    if (creationTime || increment) {
-      return [creationTime, increment].filter(Boolean).join('-');
-    }
   }
 
   return `tenant-${index + 1}`;

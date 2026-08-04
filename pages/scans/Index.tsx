@@ -12,6 +12,7 @@ import {
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { getScanList, runScan } from '../../services/scanService';
+import { toObjectIdHex } from '../../services/objectId';
 import { Scan, ScanStatus, StorageSource, BackendScan } from '../../types';
 
 const LOCATION_LABELS: Record<number, string> = {
@@ -63,7 +64,7 @@ const ScansList: React.FC = () => {
   // Helper to map backend scans to frontend representation
   const mapBackendScanToScan = (bScan: BackendScan): Scan => {
     const idStr = bScan.id && typeof bScan.id === 'object'
-      ? `${bScan.id.timestamp}-${bScan.id.machine}-${bScan.id.pid}-${bScan.id.increment}`
+      ? toObjectIdHex(bScan.id)
       : (typeof bScan.id === 'string' ? bScan.id : Math.random().toString());
 
     // Map frequency number to frequency string

@@ -1,11 +1,62 @@
-import React, { useState } from 'react';
-import { Building, CreditCard, Users, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+  Building,
+  CreditCard,
+  Users,
+  RefreshCw,
+  Save,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Plus,
+  Mail,
+  Trash2,
+  Shield,
+} from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { CreateUserModal } from '../../components/users/CreateUserModal';
 import { Tenant } from './types';
+import {
+  createSubscription,
+  deleteSubscription,
+  getSubscriptionByTenant,
+  updateSubscription,
+} from '../../services/subscriptionService';
+import { getUsers } from '../../services/userService';
+import { CreateUserResponse, Subscription, SubscriptionModel, TeamMember } from '../../types';
 
 interface TenantSettingsProps {
   tenant: Tenant;
 }
+
+const subscriptionModels: { value: SubscriptionModel; label: string; description: string }[] = [
+  { value: 'PayPerUse', label: 'Pay per use', description: 'Meter tenant activity and bill on actual usage.' },
+  { value: 'UserBased', label: 'User based', description: 'Bill by active users under this tenant.' },
+  { value: 'PayPerScan', label: 'Pay per scan', description: 'Charge for each completed scan run.' },
+  { value: 'OneTimeCharge', label: 'One-time charge', description: 'Single commercial agreement or trial setup.' },
+];
+
+const toDateInputValue = (date?: string | null): string => {
+  if (!date) {
+    return '';
+  }
+
+  return date.slice(0, 10);
+};
+
+const formatLastLogin = (lastLoginAt: string | null): string => {
+  if (!lastLoginAt) {
+    return 'Never';
+  }
+
+  const date = new Date(lastLoginAt);
+  if (Number.isNaN(date.getTime())) {
+    return 'Never';
+  }
+
+  return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+};
 
 export const TenantSettings: React.FC<TenantSettingsProps> = ({ tenant }) => {
   const [activeTab, setActiveTab] = useState<'basic' | 'subscription' | 'users'>('basic');
@@ -14,8 +65,161 @@ export const TenantSettings: React.FC<TenantSettingsProps> = ({ tenant }) => {
   const [city, setCity] = useState('Madurai');
   const [maxUsers, setMaxUsers] = useState('1000');
   const [featureDepartments, setFeatureDepartments] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState(tenant.plan);
-  const [expiryDate, setExpiryDate] = useState('2026-07-20');
+
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [isLoadingSubscription, setIsLoadingSubscription] = useState(false);
+  const [isSavingSubscription, setIsSavingSubscription] = useState(false);
+  const [isDeletingSubscription, setIsDeletingSubscription] = useState(false);
+  const [subscriptionMessage, setSubscriptionMessage] = useState('');
+  const [subscriptionError, setSubscriptionError] = useState('');
+  const [subscriptionForm, setSubscriptionForm] = useState({
+    planName: '',
+    model: 'PayPerUse' as SubscriptionModel,
+    isActive: true,
+    startDate: '',
+    endDate: '',
+  });
+
+  const [members, setMembers] = useState<TeamMember[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState('');
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+
+  const applySubscription = (nextSubscription: Subscription | null) => {
+    setSubscription(nextSubscription);
+
+    if (!nextSubscription) {
+      setSubscriptionForm({
+        planName: '',
+        model: 'PayPerUse',
+        isActive: true,
+        startDate: '',
+        endDate: '',
+      });
+      return;
+    }
+
+    setSubscriptionForm({
+      planName: nextSubscription.planName ?? '',
+      model: nextSubscription.model ?? 'PayPerUse',
+      isActive: nextSubscription.isActive ?? true,
+      startDate: toDateInputValue(nextSubscription.startDate),
+      endDate: toDateInputValue(nextSubscription.endDate),
+    });
+  };
+
+  const getSubscriptionId = (currentSubscription: Subscription | null): string => (
+    currentSubscription?.subscriptionId ?? currentSubscription?.id ?? ''
+  );
+
+  const loadSubscription = useCallback(async () => {
+    setIsLoadingSubscription(true);
+    setSubscriptionError('');
+    setSubscriptionMessage('');
+
+    try {
+      const loaded = await getSubscriptionByTenant(tenant.tenantId);
+      applySubscription(loaded);
+    } catch (error: any) {
+      if (String(error?.message ?? '').includes('404')) {
+        applySubscription(null);
+        setSubscriptionMessage('No subscription exists for this tenant yet.');
+      } else {
+        setSubscriptionError(error?.message || 'Unable to load subscription.');
+      }
+    } finally {
+      setIsLoadingSubscription(false);
+    }
+  }, [tenant.tenantId]);
+
+  const loadUsers = useCallback(async () => {
+    setIsLoadingUsers(true);
+    setUsersError('');
+
+    try {
+      const allUsers = await getUsers();
+      setMembers(allUsers.filter((member) => member.tenantId === tenant.tenantId));
+    } catch (error: any) {
+      setUsersError(error?.message || 'Unable to load users.');
+    } finally {
+      setIsLoadingUsers(false);
+    }
+  }, [tenant.tenantId]);
+
+  useEffect(() => {
+    loadSubscription();
+    loadUsers();
+  }, [loadSubscription, loadUsers]);
+
+  const handleSubscriptionSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+
+    setIsSavingSubscription(true);
+    setSubscriptionError('');
+    setSubscriptionMessage('');
+
+    const payload = {
+      model: subscriptionForm.model,
+      planName: subscriptionForm.planName.trim(),
+      startDate: subscriptionForm.startDate || null,
+      endDate: subscriptionForm.endDate || null,
+    };
+
+    try {
+      if (subscription) {
+        const subscriptionId = getSubscriptionId(subscription);
+
+        if (!subscriptionId) {
+          setSubscriptionError('Subscription ID was not returned by the API, so the subscription cannot be updated.');
+          return;
+        }
+      }
+
+      const saved = subscription
+        ? await updateSubscription(tenant.tenantId, {
+            ...payload,
+            isActive: subscriptionForm.isActive,
+            subscriptionId: getSubscriptionId(subscription),
+          })
+        : await createSubscription({ tenantId: tenant.tenantId, ...payload });
+
+      applySubscription(saved);
+      setSubscriptionMessage(subscription ? 'Subscription updated successfully.' : 'Subscription created successfully.');
+    } catch (error: any) {
+      setSubscriptionError(error?.message || 'Unable to save subscription.');
+    } finally {
+      setIsSavingSubscription(false);
+    }
+  };
+
+  const handleDeleteSubscription = async () => {
+    if (!subscription) {
+      return;
+    }
+
+    const confirmed = window.confirm('Delete this tenant subscription?');
+    if (!confirmed) {
+      return;
+    }
+
+    setIsDeletingSubscription(true);
+    setSubscriptionError('');
+    setSubscriptionMessage('');
+
+    try {
+      await deleteSubscription(tenant.tenantId);
+      applySubscription(null);
+      setSubscriptionMessage('Subscription deleted.');
+    } catch (error: any) {
+      setSubscriptionError(error?.message || 'Unable to delete subscription.');
+    } finally {
+      setIsDeletingSubscription(false);
+    }
+  };
+
+  const handleUserCreated = (_created: CreateUserResponse) => {
+    loadUsers();
+  };
 
   return (
     <div className="rounded-[24px] border border-slate-200 bg-white p-6 shadow-sm">
@@ -112,60 +316,188 @@ export const TenantSettings: React.FC<TenantSettingsProps> = ({ tenant }) => {
 
       {activeTab === 'subscription' && (
         <div className="mt-6 space-y-6 rounded-[24px] border border-slate-200 bg-white p-6">
-          <div className="space-y-3">
-            <h3 className="text-xl font-semibold text-slate-900">Subscription</h3>
-            <p className="text-sm text-slate-500">Select and manage this tenant's subscription plan.</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold text-slate-900">Subscription</h3>
+              <p className="text-sm text-slate-500">Select and manage this tenant's subscription plan.</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => loadSubscription()}
+              disabled={isLoadingSubscription}
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isLoadingSubscription ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+              Refresh
+            </button>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Current Subscription</p>
-                <p className="mt-2 text-xl font-semibold text-slate-900">{tenant.plan}</p>
-                <p className="text-sm text-slate-500">{tenant.plan} plan for large orgs with custom needs</p>
+
+          {isLoadingSubscription ? (
+            <div className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-10 text-sm font-semibold text-slate-500">
+              <Loader2 size={18} className="animate-spin text-indigo-600" />
+              Loading subscription
+            </div>
+          ) : (
+            <form onSubmit={handleSubscriptionSubmit} className="space-y-6">
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm uppercase tracking-[0.24em] text-slate-400">Current Subscription</p>
+                    <p className="mt-2 text-xl font-semibold text-slate-900">{subscription?.planName || 'No plan set'}</p>
+                    <p className="text-sm text-slate-500">{subscription ? `${subscription.model} billing model` : 'Create a subscription for this tenant below.'}</p>
+                  </div>
+                  <span className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-semibold ${
+                    subscription?.isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    {subscription ? (subscription.isActive ? 'Active' : 'Inactive') : 'Not Configured'}
+                  </span>
+                </div>
               </div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-4 py-2 text-sm font-semibold text-emerald-700">Active</span>
-            </div>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Select Subscription</label>
-              <select value={selectedPlan} onChange={(e) => setSelectedPlan(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100">
-                <option>Enterprise</option>
-                <option>Trial</option>
-                <option>Startup</option>
-              </select>
-            </div>
-            <div className="space-y-2">
-              <label className="text-sm font-semibold text-slate-700">Subscription Expiry Date</label>
-              <input type="date" value={expiryDate} onChange={(e) => setExpiryDate(e.target.value)} className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100" />
-              <p className="text-xs text-rose-500">Expired 9 day(s) ago</p>
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-3 justify-end">
-            <Button variant="outline" size="md">
-              Cancel
-            </Button>
-            <Button variant="primary" size="md">
-              Save Changes
-            </Button>
-          </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Plan Name</label>
+                  <input
+                    type="text"
+                    value={subscriptionForm.planName}
+                    onChange={(event) => setSubscriptionForm((current) => ({ ...current, planName: event.target.value }))}
+                    placeholder="Enterprise Trial"
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Subscription Status</label>
+                  <button
+                    type="button"
+                    onClick={() => setSubscriptionForm((current) => ({ ...current, isActive: !current.isActive }))}
+                    className={`flex w-full items-center justify-between rounded-2xl border px-4 py-3 text-sm font-bold transition-all ${
+                      subscriptionForm.isActive
+                        ? 'border-emerald-100 bg-emerald-50 text-emerald-700'
+                        : 'border-slate-200 bg-slate-50 text-slate-500'
+                    }`}
+                  >
+                    <span>{subscriptionForm.isActive ? 'Active' : 'Inactive'}</span>
+                    <span className={`relative h-5 w-9 rounded-full transition-colors ${subscriptionForm.isActive ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${subscriptionForm.isActive ? 'left-4' : 'left-0.5'}`} />
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-slate-700">Billing Model</label>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {subscriptionModels.map((model) => (
+                    <label
+                      key={model.value}
+                      className={`cursor-pointer rounded-2xl border p-4 transition-all ${
+                        subscriptionForm.model === model.value
+                          ? 'border-indigo-300 bg-indigo-50 ring-2 ring-indigo-100'
+                          : 'border-slate-200 bg-white hover:bg-slate-50'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="tenantSubscriptionModel"
+                        value={model.value}
+                        checked={subscriptionForm.model === model.value}
+                        onChange={() => setSubscriptionForm((current) => ({ ...current, model: model.value }))}
+                        className="sr-only"
+                      />
+                      <span className="block text-sm font-bold text-slate-800">{model.label}</span>
+                      <span className="mt-1 block text-xs text-slate-500">{model.description}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Start Date</label>
+                  <input
+                    type="date"
+                    value={subscriptionForm.startDate}
+                    onChange={(event) => setSubscriptionForm((current) => ({ ...current, startDate: event.target.value }))}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-slate-700">Subscription Expiry Date</label>
+                  <input
+                    type="date"
+                    value={subscriptionForm.endDate}
+                    onChange={(event) => setSubscriptionForm((current) => ({ ...current, endDate: event.target.value }))}
+                    className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+                  />
+                </div>
+              </div>
+
+              {(subscriptionError || subscriptionMessage) && (
+                <div className={`flex items-start gap-3 rounded-2xl border p-4 ${
+                  subscriptionError ? 'border-rose-100 bg-rose-50 text-rose-700' : 'border-emerald-100 bg-emerald-50 text-emerald-700'
+                }`}>
+                  {subscriptionError ? <AlertCircle size={18} className="mt-0.5" /> : <CheckCircle2 size={18} className="mt-0.5" />}
+                  <p className="text-sm font-semibold">{subscriptionError || subscriptionMessage}</p>
+                </div>
+              )}
+
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="md"
+                  onClick={handleDeleteSubscription}
+                  disabled={!subscription || isDeletingSubscription || isSavingSubscription}
+                  className="border-rose-100 text-rose-600 hover:bg-rose-50"
+                >
+                  {isDeletingSubscription ? <Loader2 size={16} className="animate-spin" /> : <XCircle size={16} />}
+                  Delete Subscription
+                </Button>
+                <Button type="submit" variant="primary" size="md" disabled={isSavingSubscription}>
+                  {isSavingSubscription ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  {subscription ? 'Update Subscription' : 'Create Subscription'}
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
       )}
 
       {activeTab === 'users' && (
         <div className="mt-6 space-y-6 rounded-[24px] border border-slate-200 bg-white p-6">
-          <div className="space-y-3">
-            <h3 className="text-xl font-semibold text-slate-900">User Management</h3>
-            <p className="text-sm text-slate-500">Manage user accounts, roles, and permissions</p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="space-y-1">
+              <h3 className="text-xl font-semibold text-slate-900">User Management</h3>
+              <p className="text-sm text-slate-500">Manage user accounts for this tenant</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => loadUsers()}
+                disabled={isLoadingUsers}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isLoadingUsers ? <Loader2 size={16} className="animate-spin" /> : <RefreshCw size={16} />}
+                Refresh
+              </button>
+              <Button variant="primary" size="md" onClick={() => setIsCreateUserModalOpen(true)}>
+                <Plus size={16} /> Add User
+              </Button>
+            </div>
           </div>
+
+          {usersError && (
+            <div className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
+              <AlertCircle size={18} className="mt-0.5" />
+              <span>{usersError}</span>
+            </div>
+          )}
+
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-6">
             <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <p className="text-sm text-slate-500">1 of 1 users</p>
+                <p className="text-sm text-slate-500">{members.length} user{members.length === 1 ? '' : 's'}</p>
                 <p className="text-sm font-semibold text-slate-900">Users</p>
-              </div>
-              <div className="flex flex-wrap gap-2 text-sm text-slate-500">
-                <button type="button" className="rounded-2xl bg-white px-4 py-2 text-slate-700 shadow-sm">Add User</button>
               </div>
             </div>
             <div className="overflow-x-auto rounded-3xl bg-white">
@@ -174,48 +506,74 @@ export const TenantSettings: React.FC<TenantSettingsProps> = ({ tenant }) => {
                   <tr>
                     <th className="px-4 py-4">User</th>
                     <th className="px-4 py-4">Role</th>
-                    <th className="px-4 py-4">Status</th>
-                    <th className="px-4 py-4">Department</th>
-                    <th className="px-4 py-4">Report To</th>
-                    <th className="px-4 py-4">Created</th>
-                    <th className="px-4 py-4">Actions</th>
+                    <th className="px-4 py-4">Last Login</th>
+                    <th className="px-4 py-4 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  <tr>
-                    <td className="px-4 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">ks</div>
-                        <div>
-                          <p className="font-semibold text-slate-900">kuttiraj sekar</p>
-                          <p className="text-xs text-slate-500">kraj3838@gmail.com</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-4 text-slate-900 font-semibold">ADMIN</td>
-                    <td className="px-4 py-4 text-slate-500">Active</td>
-                    <td className="px-4 py-4 text-slate-500">N/A</td>
-                    <td className="px-4 py-4 text-slate-500">N/A</td>
-                    <td className="px-4 py-4 text-slate-500">Jul 6, 2026</td>
-                    <td className="px-4 py-4 text-slate-500">...</td>
-                  </tr>
+                  {isLoadingUsers ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-10 text-center text-sm font-semibold text-slate-400">
+                        <Loader2 size={18} className="mx-auto animate-spin text-indigo-600" />
+                      </td>
+                    </tr>
+                  ) : members.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-10 text-center text-sm font-semibold text-slate-400">
+                        No users found for this tenant
+                      </td>
+                    </tr>
+                  ) : (
+                    members.map((member) => (
+                      <tr key={member.id}>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-100 text-indigo-700">
+                              <Users size={18} />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-slate-900">{member.name}</p>
+                              <p className="text-xs text-slate-500">{member.email}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <div className="flex items-center gap-2">
+                            <Shield size={14} className="text-indigo-500" />
+                            <span className="font-semibold text-slate-700">{member.role}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-4">
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase ${
+                            member.lastLoginAt ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {formatLastLogin(member.lastLoginAt)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-4 text-right">
+                          <button className="p-2 text-slate-300 hover:text-indigo-600 transition-colors">
+                            <Mail size={16} />
+                          </button>
+                          <button className="p-2 text-slate-300 hover:text-rose-500 transition-colors">
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
-          <div className="flex items-center justify-between text-sm text-slate-500">
-            <span>Showing 1 to 1 of 1 results</span>
-            <div className="flex items-center gap-3">
-              <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2">Rows per page 25</div>
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2">
-                <button type="button">⟨</button>
-                <span>Page 1 of 1</span>
-                <button type="button">⟩</button>
-              </div>
-            </div>
-          </div>
         </div>
       )}
+
+      <CreateUserModal
+        isOpen={isCreateUserModalOpen}
+        onClose={() => setIsCreateUserModalOpen(false)}
+        onUserCreated={handleUserCreated}
+        tenantId={tenant.tenantId}
+      />
     </div>
   );
 };

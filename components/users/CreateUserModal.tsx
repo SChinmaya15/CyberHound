@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { X, UserPlus, Loader2, AlertCircle } from 'lucide-react';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../ui/Button';
 import { createUser } from '../../services/userService';
 import { getTenantIdFromToken } from '../../services/authService';
-import { CreateUserResponse } from '../../types';
+import { CreateUserResponse, UserRole } from '../../types';
 
 interface CreateUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUserCreated: (user: CreateUserResponse) => void;
+  tenantId?: string;
 }
+
+const ROLE_OPTIONS: UserRole[] = ['Agent', 'Admin', 'Manager'];
 
 const initialForm = {
   firstName: '',
@@ -17,9 +20,10 @@ const initialForm = {
   email: '',
   userName: '',
   password: '',
+  role: 'User' as UserRole,
 };
 
-export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onUserCreated }) => {
+export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClose, onUserCreated, tenantId }) => {
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -67,18 +71,19 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
       return;
     }
 
-    const tenantId = getTenantIdFromToken();
+    const resolvedTenantId = tenantId || getTenantIdFromToken();
     setIsSubmitting(true);
     setSubmitError('');
 
     try {
       const created = await createUser({
-        tenantId,
+        tenantId: resolvedTenantId,
         email: form.email.trim(),
         userName: form.userName.trim(),
         lastName: form.lastName.trim(),
         password: form.password,
         firstName: form.firstName.trim(),
+        role: form.role,
       });
 
       onUserCreated(created);
@@ -170,20 +175,33 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
             </div>
 
             <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Password</label>
-              <input
-                type="password"
-                value={form.password}
-                onChange={updateField('password')}
-                placeholder="••••••••"
-                className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 ${
-                  errors.password
-                    ? 'border-rose-500 bg-rose-50 focus:ring-rose-100'
-                    : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:ring-indigo-100'
-                }`}
-              />
-              {errors.password && <p className="text-xs text-rose-600">{errors.password}</p>}
+              <label className="block text-sm font-semibold text-slate-700">Role</label>
+              <select
+                value={form.role}
+                onChange={(event) => setForm((current) => ({ ...current, role: event.target.value as UserRole }))}
+                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+              >
+                {ROLE_OPTIONS.map((role) => (
+                  <option key={role} value={role}>{role}</option>
+                ))}
+              </select>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-slate-700">Password</label>
+            <input
+              type="password"
+              value={form.password}
+              onChange={updateField('password')}
+              placeholder="••••••••"
+              className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 ${
+                errors.password
+                  ? 'border-rose-500 bg-rose-50 focus:ring-rose-100'
+                  : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:ring-indigo-100'
+              }`}
+            />
+            {errors.password && <p className="text-xs text-rose-600">{errors.password}</p>}
           </div>
 
           {submitError && (

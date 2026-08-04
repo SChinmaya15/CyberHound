@@ -36,7 +36,7 @@ export const EnterpriseShell: React.FC<EnterpriseShellProps> = ({ children, onLo
   const canAccessTenant = isSuperAdmin();
   const hideSettings = isPlainUser();
   const visibleNavItems = canAccessTenant
-    ? navItems.filter((item) => ['/dashboard', '/tenant', '/settings'].includes(item.to))
+    ? navItems.filter((item) => ['/tenant', '/settings'].includes(item.to))
     : navItems.filter((item) => item.to !== '/tenant' && !(hideSettings && item.to === '/settings'));
   const displayName = user?.name || 'Guest User';
   const displayEmail = user?.email || 'guest@enterprise.com';
