@@ -96,9 +96,9 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-        <div className="flex items-center justify-between border-b border-slate-200 p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100">
               <UserPlus size={24} className="text-indigo-600" />
@@ -116,7 +116,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
           </button>
         </div>
 
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 overflow-y-auto p-6">
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <label className="block text-sm font-semibold text-slate-700">First Name</label>
@@ -212,7 +212,7 @@ export const CreateUserModal: React.FC<CreateUserModalProps> = ({ isOpen, onClos
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-200 p-6">
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 p-6">
           <Button variant="outline" size="md" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { X, Building } from 'lucide-react';
+import { X, Building, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { createTenant } from '../../services/tenantService';
 import { Tenant } from './types';
 
 interface CreateTenantModalProps {
@@ -9,68 +10,88 @@ interface CreateTenantModalProps {
   onCreateTenant: (tenant: Tenant) => void;
 }
 
+const initialForm = {
+  tenantName: '',
+  tenantShortName: '',
+  adminEmail: '',
+  adminPassword: '',
+};
+
 export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({ isOpen, onClose, onCreateTenant }) => {
-  const [tenantName, setTenantName] = useState('');
-  const [tenantCode, setTenantCode] = useState('');
-  const [tenantEmail, setTenantEmail] = useState('');
-  const [city, setCity] = useState('Madurai');
+  const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+
+  if (!isOpen) return null;
+
+  const updateField = (field: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+    if (errors[field]) {
+      setErrors((current) => ({ ...current, [field]: '' }));
+    }
+  };
 
   const validateForm = () => {
     const newErrors: { [key: string]: string } = {};
 
-    if (!tenantName.trim()) {
+    if (!form.tenantName.trim()) {
       newErrors.tenantName = 'Tenant name is required';
     }
-    if (!tenantCode.trim()) {
-      newErrors.tenantCode = 'Tenant code is required';
+    if (!form.tenantShortName.trim()) {
+      newErrors.tenantShortName = 'Tenant short name is required';
     }
-    if (!tenantEmail.trim()) {
-      newErrors.tenantEmail = 'Email is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(tenantEmail)) {
-      newErrors.tenantEmail = 'Invalid email format';
+    if (!form.adminEmail.trim()) {
+      newErrors.adminEmail = 'Admin email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.adminEmail)) {
+      newErrors.adminEmail = 'Invalid email format';
+    }
+    if (!form.adminPassword.trim()) {
+      newErrors.adminPassword = 'Admin password is required';
+    } else if (form.adminPassword.length < 8) {
+      newErrors.adminPassword = 'Password must be at least 8 characters';
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCreate = () => {
+  const handleClose = () => {
+    setForm(initialForm);
+    setErrors({});
+    setSubmitError('');
+    onClose();
+  };
+
+  const handleCreate = async () => {
     if (!validateForm()) {
       return;
     }
 
-    const newTenant: Tenant = {
-      id: `tenant-${Date.now()}`,
-      tenantId: `tenant_${Math.random().toString(36).substr(2, 9)}`,
-      name: tenantName,
-      code: tenantCode,
-      email: tenantEmail,
-      plan: 'Trial',
-      planStatus: 'Pending',
-      expiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US'),
-      isInactive: true,
-      selected: false,
-      statusTag: 'Active',
-    };
+    setIsSubmitting(true);
+    setSubmitError('');
 
-    onCreateTenant(newTenant);
+    try {
+      const created = await createTenant({
+        tenantName: form.tenantName.trim(),
+        tenantShortName: form.tenantShortName.trim(),
+        adminEmail: form.adminEmail.trim(),
+        adminPassword: form.adminPassword,
+      });
 
-    // Reset form
-    setTenantName('');
-    setTenantCode('');
-    setTenantEmail('');
-    setCity('Madurai');
-    setErrors({});
-    onClose();
+      onCreateTenant(created);
+      handleClose();
+    } catch (error: any) {
+      setSubmitError(error?.message || 'Unable to create tenant.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-300">
-        <div className="flex items-center justify-between border-b border-slate-200 p-6">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-4 sm:items-center">
+      <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl animate-in fade-in zoom-in-95 duration-300">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-indigo-100">
               <Building size={24} className="text-indigo-600" />
@@ -81,25 +102,20 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({ isOpen, on
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="rounded-2xl border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50"
           >
             <X size={20} />
           </button>
         </div>
 
-        <div className="space-y-6 p-6">
+        <div className="space-y-6 overflow-y-auto p-6">
           <div className="space-y-2">
             <label className="block text-sm font-semibold text-slate-700">Tenant Name</label>
             <input
               type="text"
-              value={tenantName}
-              onChange={(e) => {
-                setTenantName(e.target.value);
-                if (errors.tenantName) {
-                  setErrors({ ...errors, tenantName: '' });
-                }
-              }}
+              value={form.tenantName}
+              onChange={updateField('tenantName')}
               placeholder="Enter tenant name"
               className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 ${
                 errors.tenantName
@@ -110,63 +126,54 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({ isOpen, on
             {errors.tenantName && <p className="text-xs text-rose-600">{errors.tenantName}</p>}
           </div>
 
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">Tenant Code</label>
-              <input
-                type="text"
-                value={tenantCode}
-                onChange={(e) => {
-                  setTenantCode(e.target.value);
-                  if (errors.tenantCode) {
-                    setErrors({ ...errors, tenantCode: '' });
-                  }
-                }}
-                placeholder="e.g., TENANT001"
-                className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 ${
-                  errors.tenantCode
-                    ? 'border-rose-500 bg-rose-50 focus:ring-rose-100'
-                    : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:ring-indigo-100'
-                }`}
-              />
-              {errors.tenantCode && <p className="text-xs text-rose-600">{errors.tenantCode}</p>}
-            </div>
-
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-slate-700">City</label>
-              <select
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition-all focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
-              >
-                <option>Madurai</option>
-                <option>Chennai</option>
-                <option>Bengaluru</option>
-                <option>Mumbai</option>
-                <option>Delhi</option>
-              </select>
-            </div>
-          </div>
-
           <div className="space-y-2">
-            <label className="block text-sm font-semibold text-slate-700">Email Address</label>
+            <label className="block text-sm font-semibold text-slate-700">Tenant Short Name</label>
             <input
-              type="email"
-              value={tenantEmail}
-              onChange={(e) => {
-                setTenantEmail(e.target.value);
-                if (errors.tenantEmail) {
-                  setErrors({ ...errors, tenantEmail: '' });
-                }
-              }}
-              placeholder="Enter primary email"
+              type="text"
+              value={form.tenantShortName}
+              onChange={updateField('tenantShortName')}
+              placeholder="e.g., ACME"
               className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 ${
-                errors.tenantEmail
+                errors.tenantShortName
                   ? 'border-rose-500 bg-rose-50 focus:ring-rose-100'
                   : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:ring-indigo-100'
               }`}
             />
-            {errors.tenantEmail && <p className="text-xs text-rose-600">{errors.tenantEmail}</p>}
+            {errors.tenantShortName && <p className="text-xs text-rose-600">{errors.tenantShortName}</p>}
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-700">Admin Email</label>
+              <input
+                type="email"
+                value={form.adminEmail}
+                onChange={updateField('adminEmail')}
+                placeholder="admin@company.com"
+                className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 ${
+                  errors.adminEmail
+                    ? 'border-rose-500 bg-rose-50 focus:ring-rose-100'
+                    : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:ring-indigo-100'
+                }`}
+              />
+              {errors.adminEmail && <p className="text-xs text-rose-600">{errors.adminEmail}</p>}
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-sm font-semibold text-slate-700">Admin Password</label>
+              <input
+                type="password"
+                value={form.adminPassword}
+                onChange={updateField('adminPassword')}
+                placeholder="••••••••"
+                className={`w-full rounded-2xl border px-4 py-3 text-sm outline-none transition-all focus:ring-2 ${
+                  errors.adminPassword
+                    ? 'border-rose-500 bg-rose-50 focus:ring-rose-100'
+                    : 'border-slate-200 bg-slate-50 focus:border-indigo-500 focus:ring-indigo-100'
+                }`}
+              />
+              {errors.adminPassword && <p className="text-xs text-rose-600">{errors.adminPassword}</p>}
+            </div>
           </div>
 
           <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
@@ -183,14 +190,22 @@ export const CreateTenantModal: React.FC<CreateTenantModalProps> = ({ isOpen, on
               <p className="text-xs text-slate-500">You can add plan and settings after creation</p>
             </div>
           </div>
+
+          {submitError && (
+            <div className="flex items-start gap-3 rounded-2xl border border-rose-100 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
+              <AlertCircle size={18} className="mt-0.5" />
+              <span>{submitError}</span>
+            </div>
+          )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-slate-200 p-6">
-          <Button variant="outline" size="md" onClick={onClose}>
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t border-slate-200 p-6">
+          <Button variant="outline" size="md" onClick={handleClose} disabled={isSubmitting}>
             Cancel
           </Button>
-          <Button variant="primary" size="md" onClick={handleCreate}>
-            Create Tenant
+          <Button variant="primary" size="md" onClick={handleCreate} disabled={isSubmitting}>
+            {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Building size={16} />}
+            {isSubmitting ? 'Creating...' : 'Create Tenant'}
           </Button>
         </div>
       </div>

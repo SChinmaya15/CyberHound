@@ -1,6 +1,7 @@
-import { get } from './authService';
+import { get, post } from './authService';
 import { toObjectIdHex } from './objectId';
 import { Tenant } from '../pages/tenants/types';
+import { CreateTenantRequest } from '../types';
 
 type RawTenant = Record<string, any>;
 
@@ -77,7 +78,7 @@ const normalizeTenant = (tenant: RawTenant, index: number): Tenant => {
     id,
     tenantId,
     name: getFirstString(tenant, ['name', 'tenantName', 'companyName', 'organizationName'], 'Unnamed Tenant'),
-    code: getFirstString(tenant, ['code', 'tenantCode', 'shortCode'], '-'),
+    code: getFirstString(tenant, ['code', 'tenantCode', 'shortCode', 'tenantShortName'], '-'),
     email: getFirstString(tenant, ['email', 'primaryEmail', 'contactEmail', 'adminEmail'], '-'),
     plan,
     planStatus,
@@ -108,4 +109,22 @@ const extractTenants = (payload: unknown): RawTenant[] => {
 export async function getTenants(): Promise<Tenant[]> {
   const response = await get('tenants');
   return extractTenants(response).map(normalizeTenant);
+}
+
+const extractSingleTenant = (payload: unknown): RawTenant => {
+  if (payload && typeof payload === 'object' && !Array.isArray(payload)) {
+    const record = payload as Record<string, unknown>;
+    const nested = record.data ?? record.tenant ?? record.result;
+
+    if (nested && typeof nested === 'object' && !Array.isArray(nested)) {
+      return nested as RawTenant;
+    }
+  }
+
+  return (payload as RawTenant) ?? {};
+};
+
+export async function createTenant(request: CreateTenantRequest): Promise<Tenant> {
+  const response = await post('tenants', request);
+  return normalizeTenant(extractSingleTenant(response), 0);
 }

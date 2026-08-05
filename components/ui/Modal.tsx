@@ -26,9 +26,9 @@ export const Modal: React.FC<ModalProps> = ({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex h-screen items-center justify-center bg-slate-950/50 p-4">
-      <div className="w-full max-w-md max-h-[calc(100vh-4rem)] overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-900/5">
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-4 sm:items-center">
+      <div className="flex max-h-[85vh] w-full max-w-md flex-col overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-900/5">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
           <div>
             <p className="text-lg font-semibold text-slate-900">{title}</p>
           </div>
@@ -37,9 +37,9 @@ export const Modal: React.FC<ModalProps> = ({
           </button>
         </div>
 
-        <div className="px-6 py-6 text-sm text-slate-600">{message}</div>
+        <div className="overflow-y-auto px-6 py-6 text-sm text-slate-600">{message}</div>
 
-        <div className="flex flex-col gap-3 border-t border-slate-200 px-6 py-4 sm:flex-row sm:justify-end">
+        <div className="flex shrink-0 flex-col gap-3 border-t border-slate-200 px-6 py-4 sm:flex-row sm:justify-end">
           {cancelLabel && (
             <Button variant="outline" size="md" className="w-full sm:w-auto" onClick={onClose}>
               {cancelLabel}

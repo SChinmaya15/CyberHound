@@ -52,6 +52,13 @@ export interface User {
 
 export type UserRole = 'User' | 'Admin' | 'Agent' | 'Manager' | 'SuperAdmin';
 
+export interface CreateTenantRequest {
+  tenantName: string;
+  adminEmail: string;
+  adminPassword: string;
+  tenantShortName: string;
+}
+
 export interface CreateUserRequest {
   tenantId: string;
   email: string;
