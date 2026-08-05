@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, Suspense, lazy } from 'react';
-import { HashRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { CyberHoundMascot } from './constants';
 import { apiClient } from './api/client'; 
 import { getRoleFromToken, saveToken, saveUser, clearToken, isAuthenticated, isTenantAdmin, restoreSession, isSuperAdmin } from './services/authService';
@@ -224,7 +224,7 @@ const App: React.FC = () => {
   }, []);
 
   return (
-    <HashRouter>
+    <BrowserRouter>
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/dashboard" element={<NonSuperAdminRoute><AppLayout><LazyPage><Dashboard /></LazyPage></AppLayout></NonSuperAdminRoute>} />
@@ -237,7 +237,7 @@ const App: React.FC = () => {
         <Route path="/settings" element={<SettingsRoute><AppLayout><LazyPage><SettingsPage /></LazyPage></AppLayout></SettingsRoute>} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 };
 
