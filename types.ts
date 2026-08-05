@@ -1,4 +1,36 @@
 
+export interface DashboardTotals {
+  totalScansCreated: number;
+  totalScansExecuted: number;
+  piiThreatsDetected: number;
+  piiThreatsResolved: number;
+}
+
+export interface DashboardChartPoint {
+  name: string;
+  scans: number;
+  threats: number;
+}
+
+export interface DashboardFindingBreakdown {
+  name: string;
+  value: number;
+  percent: number;
+}
+
+export interface DashboardInsight {
+  title: string;
+  severity: string;
+  description: string;
+}
+
+export interface DashboardResponse {
+  totals: DashboardTotals;
+  chart: { data: DashboardChartPoint[] };
+  findings: { total: number; breakdown: DashboardFindingBreakdown[] };
+  insights: DashboardInsight[];
+}
+
 export enum PIILevel {
   CRITICAL = 'Critical',
   HIGH = 'High',
