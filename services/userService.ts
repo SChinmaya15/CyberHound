@@ -39,6 +39,11 @@ export async function getUsers(): Promise<TeamMember[]> {
   return (users ?? []).map(mapUser);
 }
 
+export async function getUsersByTenant(tenantId: string): Promise<TeamMember[]> {
+  const users = await get<BackendUser[]>(`tenants/${tenantId}/users`);
+  return (users ?? []).map(mapUser);
+}
+
 export async function createUser(request: CreateUserRequest): Promise<CreateUserResponse> {
   return post<CreateUserResponse>('users', request);
 }

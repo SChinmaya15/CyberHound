@@ -23,7 +23,7 @@ import {
   getSubscriptionByTenant,
   updateSubscription,
 } from '../../services/subscriptionService';
-import { getUsers } from '../../services/userService';
+import { getUsersByTenant } from '../../services/userService';
 import { CreateUserResponse, Subscription, SubscriptionModel, TeamMember } from '../../types';
 
 interface TenantSettingsProps {
@@ -137,8 +137,8 @@ export const TenantSettings: React.FC<TenantSettingsProps> = ({ tenant }) => {
     setUsersError('');
 
     try {
-      const allUsers = await getUsers();
-      setMembers(allUsers.filter((member) => member.tenantId === tenant.tenantId));
+      const tenantUsers = await getUsersByTenant(tenant.tenantId);
+      setMembers(tenantUsers);
     } catch (error: any) {
       setUsersError(error?.message || 'Unable to load users.');
     } finally {
